@@ -10,20 +10,17 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 class PostDataProcessor:
-    def __init__(self, base_dir: str = "results", backup_dir: str = "results_backup"):
+    def __init__(self, base_dir: str = "results"):
         """
         Initialize the post-data processor.
         
         Args:
             base_dir: Directory containing the results
-            backup_dir: Directory for backups
         """
         self.base_dir = base_dir
-        self.backup_dir = backup_dir
         self.log_file = "logs/post_process_log.txt"
         
         # Create necessary directories
-        os.makedirs(self.backup_dir, exist_ok=True)
         os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
         
         # Initialize statistics
@@ -37,13 +34,6 @@ class PostDataProcessor:
             "overpayment": 0,
             "anomalies": 0
         }
-
-    def backup_file(self, file_path: str) -> str:
-        """Create a backup of the file."""
-        backup_path = os.path.join(self.backup_dir, os.path.relpath(file_path, self.base_dir))
-        os.makedirs(os.path.dirname(backup_path), exist_ok=True)
-        shutil.copy2(file_path, backup_path)
-        return backup_path
 
     def calculate_anomalies(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -101,9 +91,6 @@ class PostDataProcessor:
             True if file was modified, False otherwise
         """
         try:
-            # Backup file
-            self.backup_file(file_path)
-            
             # Read JSON data
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -159,52 +146,10 @@ class PostDataProcessor:
             log.write("\nSummary:\n")
             for key, value in self.stats.items():
                 log.write(f"{key}: {value}\n")
-            log.write(f"\nBackup created at: {self.backup_dir}\n")
         
         print(f"Process completed. {self.stats['total_files']} files processed, {self.stats['modified_files']} files modified.")
-        print(f"Full backup created at: {self.backup_dir}")
         print(f"See {self.log_file} for details of changes made.")
 
-    def generate_summary_report(self, output_file: str = "analysis/summary_report.csv"):
-        """
-        Generate a summary report of all processed negotiations.
-        
-        Args:
-            output_file: Path to save the summary report
-        """
-        summary_data = []
-        
-        for root, _, files in os.walk(self.base_dir):
-            for file in files:
-                if file.endswith('.json'):
-                    file_path = os.path.join(root, file)
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                            
-                        # Extract relevant information
-                        summary = {
-                            "file_path": file_path,
-                            "model_combination": f"{data.get('seller_model_name', '')}_vs_{data.get('buyer_model_name', '')}",
-                            "budget_scenario": data.get("budget_scenario", ""),
-                            "negotiation_result": data.get("negotiation_result", ""),
-                            "bargaining_rate": data.get("bargaining_rate", None),
-                            "out_of_budget": data.get("out_of_budget", False),
-                            "out_of_wholesale": data.get("out_of_wholesale", False),
-                            "irrational_refuse": data.get("irrational_refuse", False),
-                            "overpayment": data.get("overpayment", False),
-                            "price_volatility": data.get("price_volatility", None),
-                            "max_price_change": data.get("max_price_change", None)
-                        }
-                        summary_data.append(summary)
-                    except Exception as e:
-                        print(f"Error processing {file_path} for summary: {str(e)}")
-        
-        # Create DataFrame and save to CSV
-        df = pd.DataFrame(summary_data)
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
-        df.to_csv(output_file, index=False)
-        print(f"Summary report saved to {output_file}")
 
 def fix_price_scale(price_list):
     if not price_list or len(price_list) <= 1:
@@ -237,10 +182,8 @@ def fix_price_scale(price_list):
 
 def fix_price_scale_in_files():
     base_dir = "results"
-    backup_dir = f"{base_dir}_backup"
     log_file = "logs/price_scale_fixes_log.txt"
 
-    os.makedirs(backup_dir, exist_ok=True)
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
     total_files = 0
@@ -255,9 +198,6 @@ def fix_price_scale_in_files():
                     total_files += 1
                     file_path = os.path.join(root, file)
                     try:
-                        backup_path = os.path.join(backup_dir, os.path.relpath(file_path, base_dir))
-                        os.makedirs(os.path.dirname(backup_path), exist_ok=True)
-                        shutil.copy2(file_path, backup_path)
                         with open(file_path, 'r', encoding='utf-8') as f:
                             data = json.load(f)
                         if "seller_price_offers" in data:
@@ -277,10 +217,8 @@ def fix_price_scale_in_files():
         log.write("\nSummary:\n")
         log.write(f"Total files processed: {total_files}\n")
         log.write(f"Files modified: {modified_files}\n")
-        log.write(f"Backup created at: {backup_dir}\n")
 
     print(f"Price scale fix completed. {total_files} files processed, {modified_files} files modified.")
-    print(f"Full backup created at: {backup_dir}")
     print(f"See {log_file} for details of changes made.")
 
 def get_model_combinations():
@@ -348,10 +286,8 @@ def move_max_turns_files():
 def mark_anomalous_data_with_error():
     """Mark files with price increase anomalies with data_error flag."""
     base_dir = "results"
-    backup_dir = f"results_backup_anomaly"
     log_file = "logs/data_error_tag_log.txt"
     
-    os.makedirs(backup_dir, exist_ok=True)
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     
     seller_models, buyer_models = get_model_combinations()
@@ -375,11 +311,6 @@ def mark_anomalous_data_with_error():
                         if os.path.exists(json_path):
                             total_files += 1
                             try:
-                                # Backup first
-                                backup_path = os.path.join(backup_dir, os.path.relpath(json_path, base_dir))
-                                os.makedirs(os.path.dirname(backup_path), exist_ok=True)
-                                shutil.copy2(json_path, backup_path)
-                                
                                 # Read data
                                 with open(json_path, 'r', encoding='utf-8') as f:
                                     data = json.load(f)
@@ -413,11 +344,53 @@ def mark_anomalous_data_with_error():
         log.write("\nSummary:\n")
         log.write(f"Total files processed: {total_files}\n")
         log.write(f"Files marked with data_error=True: {modified_files}\n")
-        log.write(f"Backup created at: {backup_dir}\n")
     
     print(f"Anomaly marking completed. {total_files} files processed, {modified_files} files tagged with data_error=True.")
-    print(f"Full backup created at: {backup_dir}")
     print(f"See {log_file} for details of changes made.")
+
+def move_higher_than_retail_files():
+    """Move all files marked with data_error=True to a separate directory."""
+    base_dir = "results"
+    target_dir = "error_data/higher_than_retail"
+    seller_models, buyer_models = get_model_combinations()
+    budgets = ["budget_low", "budget_mid", "budget_high", "budget_wholesale", "budget_retail"]
+    products = range(1, 101)
+    
+    moved_count = 0
+    log_file = "logs/higher_than_retail_moves_log.txt"
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    
+    with open(log_file, 'w', encoding='utf-8') as log:
+        log.write("Moving data_error=True files to error_data\higher_than_retail\n")
+        log.write("=" * 80 + "\n")
+        
+        for seller_model in seller_models:
+            for buyer_model in buyer_models:
+                for product_num in products:
+                    for budget in budgets:
+                        rel_path = os.path.join(
+                            seller_model, buyer_model, f"product_{product_num}", budget, f"product_{product_num}_exp_0.json"
+                        )
+                        json_path = os.path.join(base_dir, rel_path)
+                        if os.path.exists(json_path):
+                            try:
+                                with open(json_path, "r", encoding="utf-8") as f:
+                                    data = json.load(f)
+                                if data.get("data_error") == True:
+                                    # Create target directory
+                                    dest_path = os.path.join(target_dir, rel_path)
+                                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                                    shutil.move(json_path, dest_path)
+                                    moved_count += 1
+                                    log.write(f"Moved: {json_path} -> {dest_path}\n")
+                            except Exception as e:
+                                log.write(f"Error processing {json_path}: {str(e)}\n")
+        
+        log.write("\nSummary:\n")
+        log.write(f"Total files moved: {moved_count}\n")
+    
+    print(f"Data error files processing completed. {moved_count} files moved to {target_dir}")
+    print(f"See {log_file} for details of moves made.")
 
 def main():
     # First fix price scale issues
@@ -435,11 +408,15 @@ def main():
     mark_anomalous_data_with_error()
     print("Anomaly marking completed.")
     
+    # Move data error files
+    print("\nMoving data error files...")
+    move_higher_than_retail_files()
+    print("Data error files processing completed.")
+    
     # Finally process all files
     print("\nStarting anomaly detection...")
     processor = PostDataProcessor()
     processor.process_all_files()
-    processor.generate_summary_report()
     print("Anomaly detection completed.")
 
 if __name__ == "__main__":

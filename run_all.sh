@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Define model lists
-BUYER_MODELS=("deepseek-chat" "deepseek-reasoner" "gpt-4o-mini" "gpt-3.5-turbo" "qwen2.5-7b-instruct" "qwen2.5-14b-instruct" "gpt-4.1-2025-04-14" "o4-mini-2025-04-16")
+BUYER_MODELS=("deepseek-chat" "deepseek-reasoner" "gpt-4o-mini" "gpt-3.5-turbo" "qwen2.5-7b-instruct" "qwen2.5-14b-instruct" "gpt-4.1" "o4-mini")
 SELLER_MODELS=("deepseek-chat" "deepseek-reasoner" "gpt-4o-mini" "gpt-3.5-turbo" "qwen2.5-7b-instruct" "qwen2.5-14b-instruct" "gpt-4.1" "o4-mini")
 SUMMARY_MODEL="gpt-4o-mini"  # Using deepseek-chat for all summary tasks
 
 # Set common parameters
-PRODUCTS_FILE="dataset/products.json"
+PRODUCTS_FILE="dataset/products_mini.json"
 OUTPUT_DIR="results"
 LOGS_DIR="logs"
 MAX_TURNS=30 

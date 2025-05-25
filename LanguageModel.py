@@ -171,7 +171,7 @@ class LanguageModel:
                     retry_delay *= 2  # Exponential backoff
                 else:
                     logger.error("Max retries reached. Returning default error message.")
-                    return "I apologize, but I'm currently experiencing some technical difficulties. Let's continue our conversation."
+                    return None
     
     def get_response(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1000) -> Optional[str]:
         """Get a response from the language model."""

@@ -1,15 +1,12 @@
-<div align="center">
-
 # <img src="asset/payment-security.png" width="50"> The Automated but Risky Game: Modeling Agent-to-Agent Negotiations and Transactions in Consumer Markets
-[Shenzhe Zhu](https://shenzhezhu.github.io) $^{1}$, [Jiao Sun](https://sunjiao123sun.github.io/) $^{2}$, Yi Nian $^{3}$, [Tobin South](https://tobin.page/) $^{4}$, [Alex Pentland](https://www.media.mit.edu/people/sandy/overview/) $^{4,5}$, [Jiaxin Pei](https://jiaxin-pei.github.io/) $^{5,✝}$<br>
-$^{1}$ University of Toronto, $^{2}$ Google DeepMind, $^{3}$ University of Southern California<br>
-$^{4}$ Massachusetts Institute of Technology, $^{5}$ Stanford University<br>
-($^{✝}$ Corresponding Author)
+[Shenzhe Zhu](https://shenzhezhu.github.io) $^{1}$, [Jiao Sun](https://sunjiao123sun.github.io/) $^{2}$, Yi Nian $^{3}$, [Tobin South](https://tobin.page/) $^4$, [Alex Pentland](https://www.media.mit.edu/people/sandy/overview/) $^{4,5}$, [Jiaxin Pei](https://jiaxin-pei.github.io/) $^{5,\dagger}$  
+$^1$ University of Toronto, $^2$ Google DeepMind, $^3$ University of Southern California  
+$^4$ Massachusetts Institute of Technology, $^5$ Stanford University  
+($^{\dagger}$ Corresponding Author)
 
-[**📜 Project Page**]() | [**📝 arxiv**]()
-</div>
-<img src="asset/teaser.png" width="1000">
+### [**📜 Project Page**](https://shenzhezhu.github.io/A2A-NT/) | [**📝 arxiv**]()
 
+![teaser](asset/teaser.png)
 
 ## 📰 News
 - **2025/05/17**: We have released our code and dataset.
@@ -124,3 +121,15 @@ We provide comprehensive model anomaly analysis tools in `data_postprocess/draw_
     ├── draw_result.ipynb       # Calculate metrics and generate visualizations
     └── draw_risk.ipynb         # Model anomaly analysis
 ```
+
+🧾 Citation
+If you find our work useful in your research or applications, please consider citing:
+
+**BibTeX:**
+```bibtex
+@article{zhu2025automated,
+  title={The Automated but Risky Game: Modeling Agent-to-Agent Negotiations and Transactions in Consumer Markets},
+  author={Zhu, Shenzhe and Sun, Jiao and Nian, Yi and South, Tobin and Pentland, Alex and Pei, Jiaxin},
+  journal={arXiv preprint arXiv:xxxx.xxxxx},
+  year={2025}
+}
