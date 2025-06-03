@@ -4,7 +4,7 @@ $^1$ University of Toronto, $^2$ Google DeepMind, $^3$ University of Southern Ca
 $^4$ Massachusetts Institute of Technology, $^5$ Stanford University  
 ($^{\dagger}$ Corresponding Author)
 
-### [**📜 Project Page**](https://shenzhezhu.github.io/A2A-NT/) | [**📝 arxiv**]()
+### [**📜 Project Page**](https://shenzhezhu.github.io/A2A-NT/) | [**📝 arxiv**](https://arxiv.org/abs/2506.00073)
 
 ![teaser](asset/teaser.png)
 
