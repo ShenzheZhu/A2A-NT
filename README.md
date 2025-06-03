@@ -127,9 +127,12 @@ If you find our work useful in your research or applications, please consider ci
 
 **BibTeX:**
 ```bibtex
-@article{zhu2025automated,
-  title={The Automated but Risky Game: Modeling Agent-to-Agent Negotiations and Transactions in Consumer Markets},
-  author={Zhu, Shenzhe and Sun, Jiao and Nian, Yi and South, Tobin and Pentland, Alex and Pei, Jiaxin},
-  journal={arXiv preprint arXiv:xxxx.xxxxx},
-  year={2025}
+@misc{zhu2025automatedriskygamemodeling,
+      title={The Automated but Risky Game: Modeling Agent-to-Agent Negotiations and Transactions in Consumer Markets}, 
+      author={Shenzhe Zhu and Jiao Sun and Yi Nian and Tobin South and Alex Pentland and Jiaxin Pei},
+      year={2025},
+      eprint={2506.00073},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2506.00073}, 
 }
