@@ -122,7 +122,7 @@ We provide comprehensive model anomaly analysis tools in `data_postprocess/draw_
     └── draw_risk.ipynb         # Model anomaly analysis
 ```
 
-🧾 Citation
+## 🧾 Citation
 If you find our work useful in your research or applications, please consider citing:
 
 **BibTeX:**
