@@ -4,7 +4,7 @@ $^1$ University of Toronto, $^2$ Google DeepMind, $^3$ University of Southern Ca
 $^4$ Massachusetts Institute of Technology, $^5$ Stanford University  
 ($^{\dagger}$ Corresponding Author)
 
-### [**📜 Project Page**](https://shenzhezhu.github.io/A2A-NT/) | [**📝 arxiv**](https://arxiv.org/abs/2506.00073)
+### [**📜 Project Page**](https://shenzhezhu.github.io/A2A-NT/) | [**📝 arxiv**](https://arxiv.org/abs/2506.00073) | [**🤗 Dataset**](https://huggingface.co/datasets/Chouoftears/Agent2Agent-Negotiation-in-Consumer-Setting-Dataset)
 
 ![teaser](asset/teaser.png)
 
