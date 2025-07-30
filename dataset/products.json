@@ -2,7 +2,7 @@
     {
         "Product Name": "Toyota Camry",
         "Type": "Vehicle",
-        "Retail Price": "$26995",
+        "Retail Price": "$28700",
         "Wholesale Price": "$21596",
         "Features": "Mid-size sedan with 203-hp engine and 8-speed automatic transmission",
         "Reference": "https://www.toyota.com/camry/",
@@ -11,7 +11,7 @@
     {
         "Product Name": "Honda Accord",
         "Type": "Vehicle",
-        "Retail Price": "$27895",
+        "Retail Price": "$28295",
         "Wholesale Price": "$22316",
         "Features": "Mid-size sedan with 1.5L turbocharged engine and Honda Sensing suite",
         "Reference": "https://automobiles.honda.com/accord",
@@ -20,7 +20,7 @@
     {
         "Product Name": "Tesla Model 3",
         "Type": "Vehicle",
-        "Retail Price": "$42990",
+        "Retail Price": "$47490",
         "Wholesale Price": "$34392",
         "Features": "Electric sedan with 272-mile range and autopilot capabilities",
         "Reference": "https://www.tesla.com/model3",
@@ -29,7 +29,7 @@
     {
         "Product Name": "Ford F-150",
         "Type": "Vehicle",
-        "Retail Price": "$34585",
+        "Retail Price": "$38810",
         "Wholesale Price": "$27668",
         "Features": "Full-size pickup truck with aluminum-alloy body and up to 14000 lbs towing capacity",
         "Reference": "https://www.ford.com/trucks/f150/",
@@ -38,16 +38,16 @@
     {
         "Product Name": "Chevrolet Silverado",
         "Type": "Vehicle",
-        "Retail Price": "$36300",
+        "Retail Price": "$37000",
         "Wholesale Price": "$29040",
         "Features": "Full-size pickup with multi-flex tailgate and available 2.7L turbo engine",
-        "Reference": "https://www.chevrolet.com/trucks/silverado",
+        "Reference": "https://www.chevrolet.com/trucks/silverado/1500",
         "id": 5
     },
     {
         "Product Name": "BMW 3 Series",
         "Type": "Vehicle",
-        "Retail Price": "$43300",
+        "Retail Price": "$47500",
         "Wholesale Price": "$34640",
         "Features": "Luxury compact sedan with 2.0L TwinPower Turbo engine and premium interior",
         "Reference": "https://www.bmwusa.com/vehicles/3-series/sedan/overview.html",
@@ -56,7 +56,7 @@
     {
         "Product Name": "Mercedes-Benz C-Class",
         "Type": "Vehicle",
-        "Retail Price": "$46000",
+        "Retail Price": "$48450",
         "Wholesale Price": "$36800",
         "Features": "Luxury sedan with MBUX infotainment system and premium materials",
         "Reference": "https://www.mbusa.com/en/vehicles/class/c-class/sedan",
@@ -74,7 +74,7 @@
     {
         "Product Name": "Jeep Wrangler",
         "Type": "Vehicle",
-        "Retail Price": "$31195",
+        "Retail Price": "$32690",
         "Wholesale Price": "$24956",
         "Features": "Iconic off-road SUV with removable top and doors and 4x4 capability",
         "Reference": "https://www.jeep.com/wrangler.html",
@@ -83,7 +83,7 @@
     {
         "Product Name": "Toyota RAV4",
         "Type": "Vehicle",
-        "Retail Price": "$27575",
+        "Retail Price": "$29550",
         "Wholesale Price": "$22060",
         "Features": "Compact SUV with available hybrid powertrain and Toyota Safety Sense 2.0",
         "Reference": "https://www.toyota.com/rav4/",
@@ -92,7 +92,7 @@
     {
         "Product Name": "Honda CR-V",
         "Type": "Vehicle",
-        "Retail Price": "$29500",
+        "Retail Price": "$30920",
         "Wholesale Price": "$23600",
         "Features": "Compact SUV with 1.5L turbocharged engine and Honda Sensing suite",
         "Reference": "https://automobiles.honda.com/cr-v",
@@ -101,7 +101,7 @@
     {
         "Product Name": "Subaru Outback",
         "Type": "Vehicle",
-        "Retail Price": "$28895",
+        "Retail Price": "$29995",
         "Wholesale Price": "$23116",
         "Features": "All-wheel drive crossover with 8.7 inches of ground clearance",
         "Reference": "https://www.subaru.com/vehicles/outback/index.html",
@@ -110,7 +110,7 @@
     {
         "Product Name": "Mazda CX-5",
         "Type": "Vehicle",
-        "Retail Price": "$26700",
+        "Retail Price": "$28770",
         "Wholesale Price": "$21360",
         "Features": "Compact crossover with premium feel and i-Activ AWD",
         "Reference": "https://www.mazdausa.com/vehicles/cx-5",
@@ -119,7 +119,7 @@
     {
         "Product Name": "Kia Telluride",
         "Type": "Vehicle",
-        "Retail Price": "$35890",
+        "Retail Price": "$36390",
         "Wholesale Price": "$28712",
         "Features": "Mid-size SUV with three-row seating and premium features",
         "Reference": "https://www.kia.com/us/en/telluride",
@@ -128,7 +128,7 @@
     {
         "Product Name": "Hyundai Tucson",
         "Type": "Vehicle",
-        "Retail Price": "$27250",
+        "Retail Price": "$28750",
         "Wholesale Price": "$21800",
         "Features": "Compact SUV with distinctive styling and available hybrid option",
         "Reference": "https://www.hyundaiusa.com/us/en/vehicles/tucson",
@@ -137,7 +137,7 @@
     {
         "Product Name": "Volkswagen Golf GTI",
         "Type": "Vehicle",
-        "Retail Price": "$30530",
+        "Retail Price": "$32445",
         "Wholesale Price": "$24424",
         "Features": "Hot hatchback with 2.0L turbocharged engine and sporty handling",
         "Reference": "https://www.vw.com/en/models/golf-gti.html",
@@ -146,7 +146,7 @@
     {
         "Product Name": "Porsche 911",
         "Type": "Vehicle",
-        "Retail Price": "$107550",
+        "Retail Price": "$132300",
         "Wholesale Price": "$86040",
         "Features": "Iconic sports car with rear-mounted flat-six engine and exceptional performance",
         "Reference": "https://www.porsche.com/usa/models/911/",
@@ -155,7 +155,7 @@
     {
         "Product Name": "Toyota Prius",
         "Type": "Vehicle",
-        "Retail Price": "$27650",
+        "Retail Price": "$28550",
         "Wholesale Price": "$22120",
         "Features": "Hybrid hatchback with up to 57 mpg combined fuel efficiency",
         "Reference": "https://www.toyota.com/prius/",
@@ -164,7 +164,7 @@
     {
         "Product Name": "Ford Mustang",
         "Type": "Vehicle",
-        "Retail Price": "$28865",
+        "Retail Price": "$31920",
         "Wholesale Price": "$23092",
         "Features": "American muscle car with 2.3L EcoBoost or 5.0L V8 engine options",
         "Reference": "https://www.ford.com/cars/mustang/",
@@ -173,7 +173,7 @@
     {
         "Product Name": "Chevrolet Corvette",
         "Type": "Vehicle",
-        "Retail Price": "$64500",
+        "Retail Price": "$68300",
         "Wholesale Price": "$51600",
         "Features": "Mid-engine sports car with 6.2L V8 producing 495 horsepower",
         "Reference": "https://www.chevrolet.com/performance/corvette",
@@ -182,7 +182,7 @@
     {
         "Product Name": "Nissan Altima",
         "Type": "Vehicle",
-        "Retail Price": "$25490",
+        "Retail Price": "$27000",
         "Wholesale Price": "$20392",
         "Features": "Mid-size sedan with available AWD and ProPILOT Assist",
         "Reference": "https://www.nissanusa.com/vehicles/cars/altima.html",
@@ -191,7 +191,7 @@
     {
         "Product Name": "Lexus RX",
         "Type": "Vehicle",
-        "Retail Price": "$49950",
+        "Retail Price": "$50575",
         "Wholesale Price": "$39960",
         "Features": "Luxury crossover with hybrid option and Lexus Safety System+ 3.0",
         "Reference": "https://www.lexus.com/models/RX",
@@ -200,7 +200,7 @@
     {
         "Product Name": "Acura MDX",
         "Type": "Vehicle",
-        "Retail Price": "$49550",
+        "Retail Price": "$51200",
         "Wholesale Price": "$39640",
         "Features": "Luxury three-row SUV with Super Handling All-Wheel Drive",
         "Reference": "https://www.acura.com/mdx",
@@ -209,7 +209,7 @@
     {
         "Product Name": "Volvo XC60",
         "Type": "Vehicle",
-        "Retail Price": "$43450",
+        "Retail Price": "$48345",
         "Wholesale Price": "$34760",
         "Features": "Luxury compact SUV with Scandinavian design and advanced safety features",
         "Reference": "https://www.volvocars.com/us/cars/xc60/",
@@ -218,8 +218,8 @@
     {
         "Product Name": "Land Rover Defender",
         "Type": "Vehicle",
-        "Retail Price": "$51700",
-        "Wholesale Price": "$41360",
+        "Retail Price": "$63500",
+        "Wholesale Price": "$51360",
         "Features": "Off-road SUV with advanced terrain response system and rugged capabilities",
         "Reference": "https://www.landroverusa.com/defender/index.html",
         "id": 25
@@ -227,16 +227,16 @@
     {
         "Product Name": "GMC Sierra",
         "Type": "Vehicle",
-        "Retail Price": "$38000",
+        "Retail Price": "$38300",
         "Wholesale Price": "$30400",
         "Features": "Full-size pickup truck with MultiPro tailgate and premium features",
-        "Reference": "https://www.gmc.com/trucks/sierra",
+        "Reference": "https://www.gmc.com/trucks/sierra/1500",
         "id": 26
     },
     {
         "Product Name": "Ram 1500",
         "Type": "Vehicle",
-        "Retail Price": "$38295",
+        "Retail Price": "$40275",
         "Wholesale Price": "$30636",
         "Features": "Full-size pickup with eTorque mild hybrid system and luxurious interior options",
         "Reference": "https://www.ramtrucks.com/ram-1500.html",
@@ -245,7 +245,7 @@
     {
         "Product Name": "Cadillac Escalade",
         "Type": "Vehicle",
-        "Retail Price": "$81895",
+        "Retail Price": "$88100",
         "Wholesale Price": "$65516",
         "Features": "Luxury full-size SUV with Super Cruise hands-free driving and OLED displays",
         "Reference": "https://www.cadillac.com/suvs/escalade",
@@ -254,7 +254,7 @@
     {
         "Product Name": "Rivian R1T",
         "Type": "Vehicle",
-        "Retail Price": "$73000",
+        "Retail Price": "$70900",
         "Wholesale Price": "$58400",
         "Features": "Electric pickup truck with quad-motor AWD and 314-mile range",
         "Reference": "https://rivian.com/r1t",
@@ -263,7 +263,7 @@
     {
         "Product Name": "Ford Bronco",
         "Type": "Vehicle",
-        "Retail Price": "$33895",
+        "Retail Price": "$38995",
         "Wholesale Price": "$27116",
         "Features": "Rugged SUV with removable doors and roof and G.O.A.T. terrain management system",
         "Reference": "https://www.ford.com/bronco/",
@@ -272,7 +272,7 @@
     {
         "Product Name": "Lucid Air",
         "Type": "Vehicle",
-        "Retail Price": "$87400",
+        "Retail Price": "$79900",
         "Wholesale Price": "$69920",
         "Features": "Luxury electric sedan with up to 516-mile range and fast charging",
         "Reference": "https://www.lucidmotors.com/air",
@@ -281,7 +281,7 @@
     {
         "Product Name": "Volkswagen ID.4",
         "Type": "Vehicle",
-        "Retail Price": "$41000",
+        "Retail Price": "$45095",
         "Wholesale Price": "$32800",
         "Features": "Electric SUV with 275-mile range and minimalist interior",
         "Reference": "https://www.vw.com/en/models/id-4.html",
@@ -290,7 +290,7 @@
     {
         "Product Name": "Kia EV6",
         "Type": "Vehicle",
-        "Retail Price": "$45950",
+        "Retail Price": "$42600",
         "Wholesale Price": "$36760",
         "Features": "Electric crossover with up to 310-mile range and fast charging",
         "Reference": "https://www.kia.com/us/en/ev6",
@@ -299,7 +299,7 @@
     {
         "Product Name": "Hyundai Ioniq 5",
         "Type": "Vehicle",
-        "Retail Price": "$41450",
+        "Retail Price": "$42600",
         "Wholesale Price": "$33160",
         "Features": "Electric crossover with retro-futuristic design and 800V architecture",
         "Reference": "https://www.hyundaiusa.com/us/en/vehicles/ioniq-5",
@@ -311,22 +311,22 @@
         "Retail Price": "$57700",
         "Wholesale Price": "$46160",
         "Features": "Luxury mid-size SUV with 3D digital cluster and premium materials",
-        "Reference": "https://www.genesis.com/us/en/models/suv-gv80.html",
+        "Reference": "https://www.genesis.com/us/en/gv80",
         "id": 35
     },
     {
-        "Product Name": "Audi e-tron GT",
+        "Product Name": "Audi S e-tron GT",
         "Type": "Vehicle",
-        "Retail Price": "$106500",
+        "Retail Price": "$125500",
         "Wholesale Price": "$85200",
         "Features": "Electric sports sedan with dual motors and 238-mile range",
-        "Reference": "https://www.audiusa.com/us/web/en/models/e-tron/e-tron-gt/2023/overview.html",
+        "Reference": "https://www.audiusa.com/en/models/e-tron-gt/s-e-tron-gt/2025/overview/",
         "id": 36
     },
     {
         "Product Name": "Jaguar F-Pace",
         "Type": "Vehicle",
-        "Retail Price": "$52400",
+        "Retail Price": "$57000",
         "Wholesale Price": "$41920",
         "Features": "Luxury crossover with sporty handling and premium British design",
         "Reference": "https://www.jaguarusa.com/all-models/f-pace/index.html",
@@ -335,8 +335,8 @@
     {
         "Product Name": "Maserati Levante",
         "Type": "Vehicle",
-        "Retail Price": "$83995",
-        "Wholesale Price": "$67196",
+        "Retail Price": "$102000",
+        "Wholesale Price": "$87196",
         "Features": "Luxury SUV with Italian flair and Ferrari-built engine options",
         "Reference": "https://www.maserati.com/us/en/models/levante",
         "id": 38
@@ -344,16 +344,16 @@
     {
         "Product Name": "Alfa Romeo Stelvio",
         "Type": "Vehicle",
-        "Retail Price": "$45550",
+        "Retail Price": "$48995",
         "Wholesale Price": "$36440",
         "Features": "Italian sport SUV with passionate styling and driving dynamics",
-        "Reference": "https://www.alfaromeousa.com/suv/stelvio",
+        "Reference": "https://www.alfaromeousa.com/models/stelvio",
         "id": 39
     },
     {
         "Product Name": "BMW X5",
         "Type": "Vehicle",
-        "Retail Price": "$62500",
+        "Retail Price": "$67600",
         "Wholesale Price": "$50000",
         "Features": "Luxury mid-size SUV with xDrive all-wheel drive and luxurious cabin",
         "Reference": "https://www.bmwusa.com/vehicles/x-models/x5/sports-activity-vehicle/overview.html",
@@ -362,7 +362,7 @@
     {
         "Product Name": "Samsung 65\" QN90B Neo QLED 4K TV",
         "Type": "Electronics",
-        "Retail Price": "$1999",
+        "Retail Price": "$2199",
         "Wholesale Price": "$1399",
         "Features": "4K UHD TV with Quantum Mini LED and Anti-Reflection technology",
         "Reference": "https://www.samsung.com/us/televisions-home-theater/tvs/samsung-neo-qled-4k/",
@@ -380,37 +380,37 @@
     {
         "Product Name": "Sony A80J 65\" OLED TV",
         "Type": "Electronics",
-        "Retail Price": "$1799",
-        "Wholesale Price": "$1259",
+        "Retail Price": "$2499",
+        "Wholesale Price": "$1749",
         "Features": "4K OLED TV with XR Cognitive Processor and Acoustic Surface Audio+",
         "Reference": "https://electronics.sony.com/tv-video/televisions/all-tvs/p/xr65a80j",
         "id": 43
     },
     {
-        "Product Name": "Apple iPhone 14 Pro",
+        "Product Name": "Apple iPhone 16 Pro",
         "Type": "Electronics",
         "Retail Price": "$999",
-        "Wholesale Price": "$699",
+        "Wholesale Price": "$839",
         "Features": "Smartphone with A16 Bionic chip and ProMotion display",
-        "Reference": "https://www.apple.com/iphone-14-pro/",
+        "Reference": "https://www.apple.com/iphone-16-pro/",
         "id": 44
     },
     {
-        "Product Name": "Samsung Galaxy S23 Ultra",
+        "Product Name": "Samsung Galaxy S25 Ultra",
         "Type": "Electronics",
-        "Retail Price": "$1199",
+        "Retail Price": "$999",
         "Wholesale Price": "$839",
         "Features": "Smartphone with 200MP camera and S Pen functionality",
-        "Reference": "https://www.samsung.com/us/smartphones/galaxy-s23-ultra/",
+        "Reference": "https://www.samsung.com/us/smartphones/galaxy-s25-ultra/",
         "id": 45
     },
     {
-        "Product Name": "Google Pixel 7 Pro",
+        "Product Name": "Google Pixel 9 Pro",
         "Type": "Electronics",
-        "Retail Price": "$899",
+        "Retail Price": "$999",
         "Wholesale Price": "$629",
         "Features": "Smartphone with Tensor G2 chip and advanced camera features",
-        "Reference": "https://store.google.com/product/pixel_7_pro",
+        "Reference": "https://store.google.com/product/pixel_9_pro",
         "id": 46
     },
     {
@@ -418,7 +418,7 @@
         "Type": "Electronics",
         "Retail Price": "$2499",
         "Wholesale Price": "$1749",
-        "Features": "Laptop with M2 Pro/Max chip and Liquid Retina XDR display",
+        "Features": "Laptop with M4 Pro/Max chip and Liquid Retina XDR display",
         "Reference": "https://www.apple.com/macbook-pro/",
         "id": 47
     },
@@ -470,9 +470,9 @@
     {
         "Product Name": "Apple iPad Pro 12.9\"",
         "Type": "Electronics",
-        "Retail Price": "$1099",
-        "Wholesale Price": "$769",
-        "Features": "Tablet with M2 chip and Liquid Retina XDR display",
+        "Retail Price": "$1299",
+        "Wholesale Price": "$899",
+        "Features": "Tablet with M4 chip and Liquid Retina XDR display",
         "Reference": "https://www.apple.com/ipad-pro/",
         "id": 53
     },
