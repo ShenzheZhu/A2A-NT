@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-# 建议先用一个强 seller 收敛；需要时再加其他
+# Recommend starting with one strong seller for convergence; add others as needed
 SELLER_MODELS_TRAIN=("gpt-3.5-turbo" "qwen2.5-7b-instruct")
 
 BUYER_MODEL="qwen2.5-7b-instruct"
@@ -11,7 +11,7 @@ SUMMARY_MODEL="gpt-4o-mini"
 PRODUCTS_FILE="dataset/products.json"
 TEST_FILE="dataset/products_mini.json"
 
-# 每个 seller 至少 >= 192 步（覆盖96动作*2预算）
+# Each seller: at least >= 192 steps (covers 96 actions * 2 budgets)
 STEPS_PER_SELLER=400
 MAX_TURNS=8
 SEED=42
@@ -45,7 +45,7 @@ echo "Progress: ${PROGRESS_LOG}"
 echo "Best action JSON: ${BEST_JSON}"
 echo "================================"
 
-# 指标→stdout→LOG_FILE；进度条→stderr→PROGRESS_LOG
+# Metrics → stdout → LOG_FILE; Progress bar → stderr → PROGRESS_LOG
 python -u - 1> >(tee -a "$LOG_FILE") 2> >(tee -a "$PROGRESS_LOG" >&2) <<PY
 from rl.train_bandit import train_multi_sellers
 from rl.prompt_space import ACTIONS
@@ -66,7 +66,7 @@ idx = train_multi_sellers(
     warmup_enabled=${WARMUP_PY},
     epsilon=${EPSILON},
     enforce_min_count_every=${ENFORCE_MIN_COUNT_EVERY},
-    mute_dialogue=True,   # 静音对话，保留实时轨迹与进度条
+    mute_dialogue=True,   # Mute dialogue, keep real-time metrics and progress bar
 )
 best = {"best_action_idx": int(idx), "best_action_name": ACTIONS[idx]["name"]}
 print("\\n[Train finished] best:", best)

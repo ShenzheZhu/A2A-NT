@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-# 评估用卖家（可增减）
+# Sellers for evaluation (can add/remove)
 SELLER_MODELS_EVAL=("deepseek-chat" "deepseek-reasoner" "gpt-4o-mini" "gpt-3.5-turbo" "qwen2.5-7b-instruct" "qwen2.5-14b-instruct" "gpt-4.1" "o4-mini" "o3")
 
 BUYER_MODEL="qwen2.5-7b-instruct"
@@ -14,7 +14,7 @@ BEST_JSON="artifacts/rl_best_action.json"
 MAX_TURNS=10
 SEED=123
 CUSTOM_PROMPT=True
-# 并发卖家数 = 卖家个数
+# Concurrent sellers = number of sellers
 MAX_WORKERS=${#SELLER_MODELS_EVAL[@]}
 
 TS="${TS:-$(date +%Y%m%d_%H%M%S)}"
@@ -48,7 +48,7 @@ echo "Logs: ${LOG_FILE}"
 echo "Progress log: ${PROGRESS_LOG}"
 echo "================================"
 
-# 指标→stdout→LOG_FILE；进度条→stderr→PROGRESS_LOG
+# Metrics → stdout → LOG_FILE; Progress bar → stderr → PROGRESS_LOG
 
 python -u - >> "$LOG_FILE" 2>> "$PROGRESS_LOG" <<PY
 from rl.eval_bandit import evaluate_all_sellers_parallel_models_only
@@ -70,7 +70,7 @@ evaluate_all_sellers_parallel_models_only(
     seller_workers=${MAX_WORKERS},
     show_progress=True,
     save_path="${RES_JSON}",
-    custom_prompt=${CUSTOM_PROMPT},   # 核心：传自定义 prompt
+    custom_prompt=${CUSTOM_PROMPT},   # Key: pass custom prompt
     summary_jsonl_path="${SUM_JSONL}",
     episodes_dir="${EP_DIR}",
 )

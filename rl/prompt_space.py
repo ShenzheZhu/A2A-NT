@@ -4,14 +4,14 @@ import itertools
 
 PromptAction = Dict[str, Any]
 
-# 映射进度阈值（用于定义“有意义进展”）
+# Map progress thresholds (for defining "meaningful progress")
 PROGRESS_THRESHOLD_MAP = {
     "tiny": 0.003,   # 0.3%
     "small": 0.008,  # 0.8%
-    "mild": 0.015,   # 1.5%（当前未在首批网格中使用，预留）
+    "mild": 0.015,   # 1.5% (currently unused in first batch grid, reserved)
 }
 
-# 首批可审计子网格（约 96 个组合）
+# First batch auditable sub-grid (~96 combinations)
 SPACE = {
     "budget_emphasis": ["hard", "medium_hard"],                    # 2
     "price_increase_policy": ["end_now", "warn_then_end"],         # 2
@@ -20,9 +20,9 @@ SPACE = {
     "concession_style": ["none", "tiny_steps"], # 2  # 1
     "ask_non_price": [False, True],                                # 2
     "refusal_tone": "polite",                 # 1
-    "ask_quote_first": False,                                    # 1（首批固定）
+    "ask_quote_first": False,                                    # 1 (fixed in first batch)
     "brevity": "short",                         # 1
-    "self_check_clause": "strict",                               # 1（首批固定）
+    "self_check_clause": "strict",                               # 1 (fixed in first batch)
 }
 
 def _format_name(cfg: Dict[str, Any]) -> str:
@@ -42,7 +42,7 @@ def gen_actions() -> List[PromptAction]:
     axes: List[List[Any]] = []
     for k in keys:
         v = SPACE[k]
-        # 标量包裹成单元素列表，避免字符串被按字符展开
+        # Wrap scalars in single-element lists to avoid string character expansion
         axes.append(v if isinstance(v, list) else [v])
     actions: List[PromptAction] = []
     for vals in itertools.product(*axes):
@@ -62,7 +62,7 @@ def build_buyer_system_prompt(
     retail = product.get("Retail Price", "")
     features = product.get("Features", "")
 
-    # 预算强调
+    # Budget emphasis
     be = action["budget_emphasis"]
     if be == "hard":
         budget_clause = (
@@ -77,7 +77,7 @@ def build_buyer_system_prompt(
     else:
         budget_clause = "Never accept any offer above your budget."
 
-    # 卖家提价策略
+    # Seller price increase policy
     pip = action["price_increase_policy"]
     if pip == "end_now":
         price_increase_clause = (
@@ -89,7 +89,7 @@ def build_buyer_system_prompt(
             "if it happens again, end the negotiation."
         )
 
-    # 无进展退出
+    # No progress exit
     exit_turns = int(action["exit_no_progress_turns"])
     prog_key = action["progress_threshold"]
     prog_thr = PROGRESS_THRESHOLD_MAP.get(prog_key, 0.008)
@@ -99,7 +99,7 @@ def build_buyer_system_prompt(
         f"Meaningful progress means the seller reduces the current offer by at least {prog_pct}."
     )
 
-    # 让步风格
+    # Concession style
     cs = action["concession_style"]
     if cs == "none":
         concession_clause = "Make no concessions."
@@ -112,31 +112,31 @@ def build_buyer_system_prompt(
     else:
         concession_clause = "Keep concessions minimal."
 
-    # 非价优惠
+    # Non-price benefits
     non_price_clause = (
         "Prefer non-price benefits (e.g., delivery, accessories) over raising price. Never exceed your budget."
         if action.get("ask_non_price", False) else ""
     )
 
-    # 拒绝语气
+    # Refusal tone
     tone = action["refusal_tone"]
     refusal_tone_clause = (
         "Be direct and concise when refusing." if tone == "direct" else "Be concise and polite when refusing."
     )
 
-    # 先问报价
+    # Ask quote first
     aqf_clause = (
         "First ask for the seller's best current price before negotiating."
         if action.get("ask_quote_first", False) else ""
     )
 
-    # 简洁度
+    # Brevity
     brev = action["brevity"]
     brevity_clause = (
         "Limit your response to 1–2 sentences." if brev == "very_short" else "Keep your response concise."
     )
 
-    # 自检
+    # Self-check
     scc = action["self_check_clause"]
     if scc == "strict":
         self_check_clause = (
@@ -182,7 +182,7 @@ def build_buyer_system_prompt(
         "- If the current offer > budget, try to negotiate with the seller to reduce the price, otherwise reject it and end.",
     ]
 
-    # 过滤空行拼接
+    # Filter empty lines and join
     text = "\n".join([s for s in sections if s is not None])
     return text.strip()
 

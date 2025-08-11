@@ -79,7 +79,7 @@ class SellersDashboard:
         
         with self._lock:
             self.done[seller] = min(self.total[seller], self.done[seller] + n)
-            # 清屏并重绘所有 seller 的条
+            # Clear screen and redraw all seller bars
             if self.use_clear:
                 print("\x1b[2J\x1b[H", end="", file=self.stream)
                 for s in self.sellers:
@@ -119,7 +119,7 @@ def evaluate_aggregate(
 
     pb = ProgressBar(total_episodes) if show_progress else None
 
-    # 打开 JSONL 追加（每个 seller 各一个文件，线程安全：每个 seller 独占）
+    # Open JSONL for append (one file per seller, thread-safe: each seller exclusive)
     episode_f = None
     if episode_jsonl_path:
         os.makedirs(os.path.dirname(episode_jsonl_path), exist_ok=True)
@@ -133,7 +133,7 @@ def evaluate_aggregate(
     for budget in ["high", "low"]:
         for p in products:
             with quiet(mute_dialogue):
-                # 需要 rl/env.py::run_episode 返回 (reward, info, data)
+                # Need rl/env.py::run_episode to return (reward, info, data)
                 _, info, data = run_episode(
                     product=p,
                     budget_scenario=budget,
@@ -151,14 +151,14 @@ def evaluate_aggregate(
             if info.get("deadlock", False): deadlock_cnt += 1
             turns_sum += int(info.get("turns", 0))
 
-            # 逐行写入 episode 明细
+            # Write episode details line by line
             if episode_f:
                 episode_record = {
                     "seller": seller_model,
                     "buyer": buyer_model,
                     "summary": summary_model,
                     "budget_scenario": budget,
-                    "record": data,      # 含 conversation_history, offers, budget, result, models, parameters
+                    "record": data,      # Contains conversation_history, offers, budget, result, models, parameters
                     "anomalies": a,
                 }
                 episode_f.write(json.dumps(episode_record, ensure_ascii=False) + "\n")
@@ -189,10 +189,10 @@ def evaluate_aggregate(
         "avg_turns": avg_turns,
     }
 
-    # 可选：同时输出一个完整JSON（包含全部 episodes），仅在需要时使用
+    # Optional: also output a complete JSON (containing all episodes), only use when needed
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        # 大文件风险：如数据量很大建议仅用 JSONL
+        # Large file risk: if data volume is large, recommend using only JSONL
         with open(save_path, "w", encoding="utf-8") as f:
             out = {
                 "meta": {
@@ -238,14 +238,14 @@ def evaluate_all_sellers_parallel_models_only(
 
     results: List[Dict[str, Any]] = []
 
-    # 打开 seller 汇总 JSONL
+    # Open seller summary JSONL
     summary_f = None
     if summary_jsonl_path:
         os.makedirs(os.path.dirname(summary_jsonl_path), exist_ok=True)
         summary_f = open(summary_jsonl_path, "a", encoding="utf-8")
 
     def _run_one(seller_model: str):
-        # 每个 seller 的 episodes.jsonl
+        # Each seller's episodes.jsonl
         ep_jsonl = None
         if episodes_dir:
             os.makedirs(episodes_dir, exist_ok=True)
@@ -260,15 +260,15 @@ def evaluate_all_sellers_parallel_models_only(
             summary_model=summary_model,
             max_turns=max_turns,
             seed=seed,
-            show_progress=False,      # 内层不画条
+            show_progress=False,      # Inner layer doesn't draw progress bar
             mute_dialogue=False,
             on_progress=(lambda n: dashboard.tick(seller_model, n)) if dashboard else None,
-            save_path=None,           # 不写完整大JSON
-            episode_jsonl_path=ep_jsonl,  # 逐行写 episode
-            custom_prompt=custom_prompt,  # 新增：自定义 prompt 文本
+            save_path=None,           # Don't write complete large JSON
+            episode_jsonl_path=ep_jsonl,  # Write episode line by line
+            custom_prompt=custom_prompt,  # New: custom prompt text
         )
 
-        # 逐 seller 追加一条汇总到 JSONL
+        # Append one summary per seller to JSONL
         if summary_f:
             summary_rec = {
                 "best_action_idx": best_action_idx,
@@ -277,7 +277,7 @@ def evaluate_all_sellers_parallel_models_only(
                 "summary_model": summary_model,
                 "products_file": products_file,
                 "max_turns": max_turns,
-                **summary,  # 含 seller 与各率
+                **summary,  # Contains seller and various rates
             }
             summary_f.write(json.dumps(summary_rec, ensure_ascii=False) + "\n")
             summary_f.flush()
@@ -303,7 +303,7 @@ def evaluate_all_sellers_parallel_models_only(
     sum_oob      = sum(r["oob_count"] for r in results)
     sum_deadlock = sum(r["deadlock_count"] for r in results)
 
-    # 加权平均回合数（每个 seller 恰好有 2*num_products 个 episode）
+    # Weighted average turns (each seller has exactly 2*num_products episodes)
     turns_sum_total = sum(r["avg_turns"] * (2 * num_products) for r in results)
     overall_avg_turns = turns_sum_total / max(1, total_all)
 
@@ -329,7 +329,7 @@ def evaluate_all_sellers_parallel_models_only(
         overall_summary["avg_turns"],
     ))
 
-    # 可选：一个总汇总JSON（不含 episodes）
+    # Optional: one overall summary JSON (without episodes)
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         out = {

@@ -66,7 +66,7 @@ def _dump_action_probs(policy: SoftmaxPolicy, csv_path: str = None, top_k: int =
     rows = []
     for i in range(len(ACTIONS)):
         rows.append({
-            "rank": i,  # 暂存，排序后再改
+            "rank": i,  # Temporary, change after sorting
             "idx": i,
             "name": ACTIONS[i]["name"],
             "prob": probs[i],
@@ -75,10 +75,10 @@ def _dump_action_probs(policy: SoftmaxPolicy, csv_path: str = None, top_k: int =
     rows.sort(key=lambda x: x["prob"], reverse=True)
     for r, row in enumerate(rows):
         row["rank"] = r + 1
-    # 打印 Top-N
+    # Print Top-N
     for row in rows[: (top_k or len(rows))]:
         print(f"{row['rank']:02d} | p={row['prob']:.4f} | theta={row['theta']:+.3f} | idx={row['idx']:03d} | {row['name']}")
-    # 落盘 CSV（可选）
+    # Save CSV (optional)
     if csv_path:
         os.makedirs(os.path.dirname(csv_path), exist_ok=True)
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
@@ -161,13 +161,13 @@ def _warmup_coverage(
     mute_dialogue: bool = True,
 ):
     """
-    覆盖性热身：每个动作在 high/low 各评估 1 次，共 2 * |ACTIONS| 次；在线更新。
+    Coverage warmup: each action evaluated once at high/low, total 2 * |ACTIONS| times; online updates.
     """
     rng = random.Random(seed)
     action_indices = list(range(len(ACTIONS)))
     rng.shuffle(action_indices)
 
-    ptr = 0  # 轮转产品
+    ptr = 0  # Rotate products
     for budget in ["high", "low"]:
         for a in action_indices:
             product = products[ptr % len(products)]
@@ -183,7 +183,7 @@ def _warmup_coverage(
                     max_turns=max_turns,
                 )
 
-            # 使用当前策略概率做一致的更新
+            # Use current policy probabilities for consistent updates
             probs = policy._softmax()
             pa = probs[a] if a < len(probs) else 1.0 / len(ACTIONS)
             policy.update(a, pa, reward)
@@ -198,7 +198,7 @@ def _warmup_coverage(
             if rt is not None:
                 top_idx = max(range(len(probs)), key=lambda i: probs[i])
                 rt.update(
-                    step=-1,  # 热身不计入主 step，可传 -1
+                    step=-1,  # Warmup not counted in main step, can pass -1
                     budget=budget,
                     reward=reward,
                     info=info,
@@ -219,7 +219,7 @@ def train_multi_sellers(
     max_turns: int = 20,
     seed: int = 42,
     warmup_enabled: bool = True,
-    epsilon: float = 0.1,                 # 保留参数但实际用退火 dynamic_epsilon
+    epsilon: float = 0.1,                 # Keep parameter but actually use annealed dynamic_epsilon
     enforce_min_count_every: int = 20,
     mute_dialogue: bool = True,
 ) -> int:
@@ -229,7 +229,7 @@ def train_multi_sellers(
 
     policy = SoftmaxPolicy(len(ACTIONS), learning_rate=0.1)
 
-    # 进度条总步数（每个 seller ：热身 + 主训练）
+    # Progress bar total steps (each seller: warmup + main training)
     warmup_eps = 2 * len(ACTIONS) if warmup_enabled else 0
     total_eps = len(seller_models) * (warmup_eps + steps_per_seller)
     rt = RealtimeMeter(window=10, print_every=1, total=total_eps,
@@ -244,7 +244,7 @@ def train_multi_sellers(
     total_steps_all = steps_per_seller * len(seller_models)
 
     for seller_model in seller_models:
-        # 热身
+        # Warmup
         if warmup_enabled:
             def _tick():
                 nonlocal done
@@ -253,7 +253,7 @@ def train_multi_sellers(
             _warmup_coverage(policy, products, buyer_model, seller_model, summary_model, max_turns, rt=rt, on_episode=_tick, mute_dialogue=mute_dialogue)
             print(f"\n[Warmup] seller={seller_model} done.")
 
-        # 构建 Top‑K 激活集合
+        # Build Top-K active set
         K = 24
         active = sorted(range(len(ACTIONS)), key=lambda i: policy.theta[i], reverse=True)[:K]
         active_set = set(active)
@@ -262,19 +262,19 @@ def train_multi_sellers(
         for local_step in range(1, steps_per_seller + 1):
             global_step += 1
 
-            # 两阶段预算采样：先稳 low，再偏高权重 high
+            # Two-stage budget sampling: stable low first, then high-weighted high
             half_steps = steps_per_seller // 2
             if local_step <= half_steps:
                 budget_scenario = "low"
             else:
                 budget_scenario = "high" if (random.random() < 0.7) else "low"
 
-            # 退火 ε：0.10 → 0.02（按全局进度）
+            # Anneal ε: 0.10 → 0.02 (by global progress)
             progress = (global_step - 1) / max(1, total_steps_all - 1)
             eps0, eps1 = 0.10, 0.02
             dynamic_epsilon = eps0 + (eps1 - eps0) * progress
 
-            # 2/3 进度再压缩 Top‑K → 12（只做一次）
+            # At 2/3 progress shrink Top-K → 12 (only once)
             if local_step == int(steps_per_seller * 2 / 3):
                 K2 = min(12, len(ACTIONS))
                 active = sorted(range(len(ACTIONS)), key=lambda i: policy.theta[i], reverse=True)[:K2]
@@ -283,9 +283,9 @@ def train_multi_sellers(
 
             probs = policy._softmax()
 
-            # 仅在 active_set 内采样
+            # Sample only within active_set
             def sample_from_active(active_set, probs_list):
-                # 规范化 active 概率
+                # Normalize active probabilities
                 ap = [probs_list[i] if i in active_set else 0.0 for i in range(len(ACTIONS))]
                 s = sum(ap) or 1.0
                 ap = [p / s for p in ap]
@@ -297,15 +297,15 @@ def train_multi_sellers(
                 return idx
 
             if enforce_min_count_every and (local_step % enforce_min_count_every == 0):
-                # 在 active_set 中挑“最少采样”的动作
+                # Pick "least sampled" action in active_set
                 action_idx = min(active_set, key=lambda i: counts[i])
                 pa = probs[action_idx]
             elif random.random() < dynamic_epsilon:
-                # 在 active_set 中随机探索
+                # Random exploration in active_set
                 action_idx = random.choice(list(active_set))
                 pa = probs[action_idx]
             else:
-                # 在 active_set 内按概率采样
+                # Sample by probability within active_set
                 action_idx = sample_from_active(active_set, probs)
                 pa = probs[action_idx]
 
@@ -316,14 +316,14 @@ def train_multi_sellers(
                     budget_scenario=budget_scenario,
                     action_idx=action_idx,
                     buyer_model=buyer_model,
-                    seller_model=seller_model,  # 当前阶段卖家
+                    seller_model=seller_model,  # Current stage seller
                     summary_model=summary_model,
                     max_turns=max_turns,
                 )
             policy.update(action_idx, pa, reward)
             counts[action_idx] += 1
 
-            # 实时轨迹与进度
+            # Real-time metrics and progress
             probs = policy._softmax()
             top_idx = max(range(len(probs)), key=lambda i: probs[i])
             rt.update(step=global_step, budget=budget_scenario, reward=reward, info=info,

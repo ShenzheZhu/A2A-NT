@@ -22,8 +22,8 @@ def run_episode(
     seller_model: str,
     summary_model: str,
     max_turns: int = 20,
-    buyer_system_prompt: bool = False,   # 新增：自定义 prompt 文本
-) -> Tuple[float, Dict[str, Any], Dict[str, Any]]:  # 返回第三个 data 便于落盘
+    buyer_system_prompt: bool = False,   # New: custom prompt text
+) -> Tuple[float, Dict[str, Any], Dict[str, Any]]:  # Return third data for saving
 
     budgets = calculate_budget_scenarios(product["Retail Price"], product["Wholesale Price"])
     budget_value = budgets[budget_scenario]
