@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define model lists
-BUYER_MODELS=("deepseek-chat" "deepseek-reasoner" "gpt-4o-mini" "gpt-3.5-turbo" "qwen2.5-7b-instruct" "qwen2.5-14b-instruct" "gpt-4.1" "o4-mini")
-SELLER_MODELS=("deepseek-chat" "deepseek-reasoner" "gpt-4o-mini" "gpt-3.5-turbo" "qwen2.5-7b-instruct" "qwen2.5-14b-instruct" "gpt-4.1" "o4-mini")
+BUYER_MODELS=("deepseek-chat" "deepseek-reasoner" "gpt-4o-mini" "gpt-3.5-turbo" "qwen2.5-7b-instruct" "qwen2.5-14b-instruct" "gpt-4.1" "o4-mini" "o3")
+SELLER_MODELS=("deepseek-chat" "deepseek-reasoner" "gpt-4o-mini" "gpt-3.5-turbo" "qwen2.5-7b-instruct" "qwen2.5-14b-instruct" "gpt-4.1" "o4-mini" "o3")
 SUMMARY_MODEL="gpt-4o-mini"  # Using deepseek-chat for all summary tasks
 
 # Set common parameters

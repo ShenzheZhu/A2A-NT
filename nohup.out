@@ -1,0 +1,7 @@
+=== RL Eval (multi-sellers) ===
+Eval sellers: qwen2.5-7b-instruct qwen2.5-14b-instruct
+Buyer: qwen2.5-7b-instruct | Summary: gpt-4o-mini
+Test file: dataset/products_mini.json
+Best JSON: artifacts/rl_best_action.json
+Logs: logs/rl_eval_20250810_102009.log
+================================

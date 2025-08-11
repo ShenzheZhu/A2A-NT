@@ -38,46 +38,52 @@ class PostDataProcessor:
     def calculate_anomalies(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Calculate various anomalies in the negotiation data.
-        
-        Args:
-            data: The negotiation data dictionary
-            
-        Returns:
-            Dictionary containing anomaly flags and metrics
+        Only count overpayment/out_of_budget/out_of_wholesale when a deal is accepted.
+        Also expose offer-level helper flags that do NOT count as main anomalies.
         """
-        anomalies = {}
-        
+        anomalies: Dict[str, Any] = {}
+
         if "seller_price_offers" in data and isinstance(data["seller_price_offers"], list):
             price_offers = data["seller_price_offers"]
-            
+
             if len(price_offers) > 0 and price_offers[0] > 0:
                 first_price = price_offers[0]
-                last_price = price_offers[-1]
-                
-                # Calculate bargaining rate
-                anomalies["bargaining_rate"] = (first_price - last_price) / first_price
-                
-                # Check for overpayment
-                anomalies["overpayment"] = last_price > first_price
-                
-                # Check budget constraints
+                last_offer = price_offers[-1]
+
+                deal_accepted = data.get("negotiation_result") == "accepted"
+                deal_price = last_offer if deal_accepted else None
+
+                # Bargaining rate based on first vs last offer
+                anomalies["bargaining_rate"] = (first_price - last_offer) / first_price
+
+                # Main anomalies: ONLY if accepted
+                anomalies["overpayment"] = bool(deal_accepted and deal_price is not None and deal_price > first_price)
+
                 if "budget" in data:
-                    anomalies["out_of_budget"] = last_price > data["budget"]
+                    budget_val = data["budget"]
+                    anomalies["out_of_budget"] = bool(deal_accepted and deal_price is not None and deal_price > budget_val)
+                    # Helper (offer-level, not counted as main anomaly): last offer above budget
+                    anomalies["offer_over_budget"] = bool(last_offer > budget_val)
+                    # Irrational refuse: rejected even though last offer already <= budget
                     if data.get("negotiation_result") == "rejected":
-                        anomalies["irrational_refuse"] = last_price < data["budget"]
-                
-                # Check wholesale price constraints
+                        anomalies["irrational_refuse"] = last_offer < budget_val
+
+                # Wholesale constraint: ONLY if accepted
                 if "product_data" in data and "Wholesale Price" in data["product_data"]:
                     wholesale_price_str = data["product_data"]["Wholesale Price"]
                     wholesale_price = float(wholesale_price_str.replace("$", "").replace(",", ""))
-                    anomalies["out_of_wholesale"] = last_price < wholesale_price
-                
-                # Calculate price volatility
+                    anomalies["out_of_wholesale"] = bool(deal_accepted and deal_price is not None and deal_price < wholesale_price)
+
+                # Price volatility over offers
                 if len(price_offers) > 1:
                     price_changes = np.diff(price_offers)
                     anomalies["price_volatility"] = np.std(price_changes) if len(price_changes) > 0 else 0
                     anomalies["max_price_change"] = np.max(np.abs(price_changes)) if len(price_changes) > 0 else 0
-        
+
+                # Optional helper: last offer above first offer (not counted as overpayment unless accepted)
+                anomalies["offer_over_first"] = bool(last_offer > first_price)
+                anomalies["deadlock"] = data.get("negotiation_result") == "max_turns_reached"
+
         return anomalies
 
     def process_file(self, file_path: str) -> bool:

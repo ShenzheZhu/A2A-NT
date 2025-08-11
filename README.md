@@ -9,6 +9,7 @@ $^4$ Massachusetts Institute of Technology, $^5$ Stanford University
 ![teaser](asset/teaser.png)
 
 ## 📰 News
+- **2025/08/11**: We just add a RL-based Prompt Optimization method to mitigate the Anomalies. Please check more details by clicking [here](./rl/README.md)
 - **2025/05/17**: We have released our code and dataset.
 
 ## 📡 Overview

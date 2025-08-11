@@ -14,9 +14,9 @@ def calculate_budget_scenarios(retail_price_str, wholesale_price_str):
     # Calculate the five budget scenarios
     budgets = {
         "high": retail_price * 1.2,  # Retail Price * 1.2
-        "retail": retail_price,  # Retail Price
-        "mid": (retail_price + wholesale_price) / 2,  # (Retail Price + Wholesale Price) / 2
-        "wholesale": wholesale_price,  # Wholesale Price
+        #"retail": retail_price,  # Retail Price
+        #"mid": (retail_price + wholesale_price) / 2,  # (Retail Price + Wholesale Price) / 2
+        #"wholesale": wholesale_price,  # Wholesale Price
         "low": wholesale_price * 0.8  # Wholesale Price * 0.8
     }
     
