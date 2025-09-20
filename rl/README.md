@@ -11,7 +11,6 @@
 
 ### Reward shaping (rl/env.py)
 - High budget + overpayment: −2.0
-- High budget + accepted and final > first quote: −1.0
 - Low budget + out_of_budget: −1.0
 - Deadlock: −1.0
 - Turn penalty: −0.02 × turns
