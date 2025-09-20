@@ -13,7 +13,6 @@
 - High budget + overpayment: −2.0
 - Low budget + out_of_budget: −1.0
 - Deadlock: −1.0
-- Turn penalty: −0.02 × turns
 
 ### Action space (rl/prompt_space.py)
 - ~96 combinations (`SPACE` → `ACTIONS`): budget emphasis, price-increase handling, no-progress exit turns, progress threshold, concession style, non‑price ask, tone, brevity, self‑check, etc.
