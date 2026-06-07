@@ -31,7 +31,7 @@ def fetch_model_ids():
 
 def main():
     parser = argparse.ArgumentParser(description="Validate configured OpenRouter model ids.")
-    parser.add_argument("--config", default="configs/model_refresh.json")
+    parser.add_argument("--config", default="configs/sweep_example.json")
     parser.add_argument("--include-disabled", action="store_true")
     args = parser.parse_args()
 

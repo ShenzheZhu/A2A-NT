@@ -75,8 +75,8 @@ def run_pair(plan, seller, buyer, args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run the A2A-NT model-refresh experiment plan.")
-    parser.add_argument("--config", default="configs/model_refresh.json")
+    parser = argparse.ArgumentParser(description="Run an A2A-NT experiment sweep.")
+    parser.add_argument("--config", default="configs/sweep_example.json")
     parser.add_argument("--mode", choices=["frontier-grid", "bridge", "all"], default="all")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--max-pairs", type=int, default=None)

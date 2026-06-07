@@ -118,9 +118,9 @@ def write_csv(path: Path, payload: Dict[str, Any]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Summarize A2A-NT result JSON files.")
-    parser.add_argument("--results-dir", default="results/model_refresh_2026")
-    parser.add_argument("--output-js", default="results/model_refresh_2026_summary.js")
-    parser.add_argument("--output-csv", default="results/model_refresh_2026_summary.csv")
+    parser.add_argument("--results-dir", default="results/sweep")
+    parser.add_argument("--output-js", default="results/sweep_summary.js")
+    parser.add_argument("--output-csv", default="results/sweep_summary.csv")
     args = parser.parse_args()
 
     payload = summarize(Path(args.results_dir))

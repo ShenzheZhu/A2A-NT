@@ -22,7 +22,7 @@ Create a Python 3.9 environment and install dependencies:
 pip install -r requirements.txt
 ```
 
-For the current model refresh, calls are routed through LiteLLM and OpenRouter. Put the key in `.env`:
+Model calls are routed through LiteLLM. For OpenRouter-backed models, put the key in `.env`:
 
 ```bash
 OPENROUTER_API_KEY=...
@@ -30,43 +30,48 @@ OPENROUTER_API_KEY=...
 
 `Config.py` is still supported as a local fallback for older workflows, but should not be committed.
 
-## Current Refresh Design
+## Running Experiments
 
-The experiment refresh uses a smaller, cleaner design before any expensive full sweep:
+An experiment is defined by a product file, buyer model, seller model, summary model, budget scenarios, turn limit, and output directory. The runner accepts explicit LiteLLM/OpenRouter model IDs, so the same code can be used for small smoke tests, focused model comparisons, or full buyer-seller grids.
 
-- Products: all 30 consumer electronics and appliance records from `dataset/products.json` (`id=41..70`), written to `dataset/products_consumer_electronics.json`.
-- Main budgets: `wholesale`, `mid`, and `retail`.
-- Frontier leaderboard: full 6 x 6 buyer-seller grid.
-- Bridge comparison: selected legacy Qwen models only, instead of pairing every new model against every old model.
+Run a single dry-run smoke test:
 
-Build or refresh the product subset:
+```bash
+python3 main.py \
+  --products-file dataset/products_mini.json \
+  --buyer-model openrouter/openai/gpt-4o-mini \
+  --seller-model openrouter/openai/gpt-4o-mini \
+  --summary-model openrouter/openai/gpt-4o-mini \
+  --budget-scenarios wholesale,mid,retail \
+  --product-limit 1 \
+  --dry-run
+```
+
+Build a product subset when a run should use only part of the released product catalog:
 
 ```bash
 python3 scripts/build_product_subset.py
 ```
 
-Inspect the planned run without calling model APIs:
+Inspect a configured sweep without calling model APIs:
 
 ```bash
 python3 scripts/validate_openrouter_models.py
-python3 scripts/run_model_refresh.py --dry-run
+python3 scripts/run_sweep.py --dry-run
 ```
 
-Run the configured sweep:
+Run a configured sweep:
 
 ```bash
-bash scripts/run_model_refresh.sh
+bash scripts/run_sweep.sh
 ```
 
-Useful overrides:
+Useful commands:
 
 ```bash
-python3 scripts/run_model_refresh.py --mode frontier-grid --product-limit 2 --dry-run
-python3 scripts/run_model_refresh.py --mode bridge --dry-run
-python3 main.py --products-file dataset/products_consumer_electronics.json --buyer-model qwen/qwen3.7-max --seller-model openai/gpt-5.5 --summary-model openai/gpt-5.4-mini --budget-scenarios wholesale,mid,retail --product-limit 1 --dry-run
+python3 scripts/run_sweep.py --config configs/sweep_example.json --max-pairs 2 --product-limit 1 --dry-run
+python3 scripts/run_sweep.py --config configs/sweep_example.json --mode all --dry-run
 ```
-
-The current OpenRouter model API lists `qwen/qwen-2.5-7b-instruct`, but not a standard `qwen2.5-14b-instruct` route. The 14B bridge entry is kept disabled in `configs/model_refresh.json` until a live provider or exact OpenRouter ID is confirmed.
 
 ## Budget Scenarios
 
@@ -78,7 +83,7 @@ Supported scenarios are:
 - `retail`: `retail`
 - `high`: `1.2 * retail`
 
-The main refresh uses `wholesale,mid,retail`. `low` and `high` are reserved for targeted risk audits rather than the main leaderboard aggregate.
+Use `--budget-scenarios` to choose which scenarios to include in a run. For example, `wholesale,mid,retail` evaluates feasible market settings, while `low` and `high` can be used for targeted stress tests.
 
 ## Results
 
@@ -98,7 +103,7 @@ Each result file contains the conversation history, extracted seller offers, neg
 Summarize a run:
 
 ```bash
-python3 scripts/summarize_results.py --results-dir results/model_refresh_2026
+python3 scripts/summarize_results.py --results-dir results/sweep
 ```
 
 ## Project Structure
@@ -109,14 +114,14 @@ python3 scripts/summarize_results.py --results-dir results/model_refresh_2026
 ├── Conversation.py                 # Negotiation flow
 ├── LanguageModel.py                # LiteLLM model gate
 ├── MarkAnomaly.py                  # Post-run anomaly labeling
-├── configs/model_refresh.json      # Current model-refresh plan
+├── configs/sweep_example.json      # Example sweep configuration
 ├── dataset/
 │   ├── products.json
 │   ├── products_mini.json
 │   └── products_consumer_electronics.json
 ├── scripts/
 │   ├── build_product_subset.py
-│   ├── run_model_refresh.py
+│   ├── run_sweep.py
 │   ├── summarize_results.py
 │   └── validate_openrouter_models.py
 └── data_postprocess/               # Analysis notebooks and plotting scripts
