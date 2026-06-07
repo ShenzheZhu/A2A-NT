@@ -130,7 +130,7 @@ results/
 
 Each result file contains the conversation history, extracted seller offers, negotiation outcome, budget scenario, and model metadata.
 
-Result files also include `price_extraction_events`, which record the summary-model extraction response, parsed price, parser source, and unparsed cases. Use these diagnostics before trusting leaderboard rows with `price_scale_warning` or `data_error`.
+Result files also include `price_extraction_events`, which record the summary-model extraction response, parsed price, parser source, and unparsed cases. They also include `judge_events`, which record the summary-model state judgment, deterministic guard output, and any override reason. Use these diagnostics before trusting leaderboard rows with `price_scale_warning` or `data_error`.
 
 Summarize a run:
 
