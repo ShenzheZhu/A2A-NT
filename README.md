@@ -1,82 +1,90 @@
-# <img src="asset/payment-security.png" width="50"> The Automated but Risky Game: Modeling Agent-to-Agent Negotiations and Transactions in Consumer Markets
-[Shenzhe Zhu](https://shenzhezhu.github.io) $^{1}$, [Jiao Sun](https://sunjiao123sun.github.io/) $^{2}$, Yi Nian $^{3}$, [Tobin South](https://tobin.page/) $^4$, [Alex Pentland](https://www.media.mit.edu/people/sandy/overview/) $^{4,5}$, [Jiaxin Pei](https://jiaxin-pei.github.io/) $^{5,\dagger}$  
-$^1$ University of Toronto, $^2$ Google DeepMind, $^3$ University of Southern California  
-$^4$ Massachusetts Institute of Technology, $^5$ Stanford University  
+# The Automated but Risky Game: Modeling and Benchmarking Agent-to-Agent Negotiations and Transactions in Consumer Markets
+
+[Shenzhe Zhu](https://shenzhezhu.github.io) $^{1}$, [Jiao Sun](https://sunjiao123sun.github.io/) $^{2}$, Yi Nian $^{3}$, [Tobin South](https://tobin.page/) $^4$, [Alex Pentland](https://www.media.mit.edu/people/sandy/overview/) $^{4,5}$, [Jiaxin Pei](https://jiaxin-pei.github.io/) $^{5,\dagger}$
+
+$^1$ University of Toronto, $^2$ Google DeepMind, $^3$ University of Southern California
+$^4$ Massachusetts Institute of Technology, $^5$ Stanford University
 ($^{\dagger}$ Corresponding Author)
 
-### [**📜 Project Page**](https://shenzhezhu.github.io/A2A-NT/) | [**📝 arxiv**](https://arxiv.org/abs/2506.00073) | [**🤗 Dataset**](https://huggingface.co/datasets/Chouoftears/Agent2Agent-Negotiation-in-Consumer-Setting-Dataset)
+[Project Page](https://shenzhezhu.github.io/A2A-NT/) | [arXiv](https://arxiv.org/abs/2506.00073) | [Dataset](https://huggingface.co/datasets/Chouoftears/Agent2Agent-Negotiation-in-Consumer-Setting-Dataset)
 
 ![teaser](asset/teaser.png)
 
-## 📰 News
-- **2025/08/11**: We just add a RL-based Prompt Optimization method to mitigate the Anomalies. Please check more details by clicking [here](./rl/README.md)
-- **2025/05/17**: We have released our code and dataset.
+## Overview
 
-## 📡 Overview
-This repository contains the implementation of an automated negotiation system that simulates agent-to-agent negotiations in consumer markets. The system uses large language models (LLMs) to power both buyer and seller agents, enabling realistic and dynamic price negotiations. We also provide methods for detecting model anomalies and potential risks in automated negotiations.
+A2A-NT simulates consumer-market negotiations where both buyers and sellers delegate price negotiation to LLM agents. The benchmark records full dialogue traces, extracted seller offers, final deal outcomes, budget and wholesale constraints, and post-run anomaly labels.
 
-## 🛠️ Agent-to-Agent Negotiations and Transaction Framework
-<img src="asset/workflow.png" width="1000">
+## Setup
 
-### Setup
+Create a Python 3.9 environment and install dependencies:
 
-1. Create a conda environment:
-```bash
-conda create -n negotiation python=3.9
-conda activate negotiation
-```
-
-2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up API keys in a `Config.py` file:
-```
-OPENAI_API_KEY = "your_openai_api_key"
-DEEPSEEK_API_KEY = ["your_deepseek_api_key1", "your_deepseek_api_key2"]
-ZHI_API_KEY = ["your_zhizengzeng_api_key1", "your_zhizengzeng_api_key2"]
-GOOGLE_API_KEY = "your_google_api_key"
-```
+For the current model refresh, calls are routed through LiteLLM and OpenRouter. Put the key in `.env`:
 
-### Usage
-
-Run experiments using the provided shell script:
 ```bash
-./run_all.sh
+OPENROUTER_API_KEY=...
 ```
 
-Or run individual experiments using main.py:
+`Config.py` is still supported as a local fallback for older workflows, but should not be committed.
+
+## Current Refresh Design
+
+The experiment refresh uses a smaller, cleaner design before any expensive full sweep:
+
+- Products: all 30 consumer electronics and appliance records from `dataset/products.json` (`id=41..70`), written to `dataset/products_consumer_electronics.json`.
+- Main budgets: `wholesale`, `mid`, and `retail`.
+- Frontier leaderboard: full 6 x 6 buyer-seller grid.
+- Bridge comparison: selected legacy Qwen models only, instead of pairing every new model against every old model.
+
+Build or refresh the product subset:
+
 ```bash
-python main.py \
-    --products-file dataset/products.json \
-    --buyer-model gpt-3.5-turbo \
-    --seller-model gpt-3.5-turbo \
-    --summary-model gpt-3.5-turbo \
-    --max-turns 30 \
-    --num-experiments 1 \
-    --output-dir results
+python3 scripts/build_product_subset.py
 ```
 
-### Budget Scenarios
+Inspect the planned run without calling model APIs:
 
-The system tests five different budget scenarios for each product:
-- High: Retail Price * 1.2
-- Retail: Retail Price
-- Mid: (Retail Price + Wholesale Price) / 2
-- Wholesale: Wholesale Price
-- Low: Wholesale Price * 0.8
-
-### Supported Models
-- OpenAI
-- DeepSeek
-- Qwen
-- Google
-
-### Results
-
-Results are saved in the `results` directory with the following structure:
+```bash
+python3 scripts/validate_openrouter_models.py
+python3 scripts/run_model_refresh.py --dry-run
 ```
+
+Run the configured sweep:
+
+```bash
+bash scripts/run_model_refresh.sh
+```
+
+Useful overrides:
+
+```bash
+python3 scripts/run_model_refresh.py --mode frontier-grid --product-limit 2 --dry-run
+python3 scripts/run_model_refresh.py --mode bridge --dry-run
+python3 main.py --products-file dataset/products_consumer_electronics.json --buyer-model qwen/qwen3.7-max --seller-model openai/gpt-5.5 --summary-model openai/gpt-5.4-mini --budget-scenarios wholesale,mid,retail --product-limit 1 --dry-run
+```
+
+The current OpenRouter model API lists `qwen/qwen-2.5-7b-instruct`, but not a standard `qwen2.5-14b-instruct` route. The 14B bridge entry is kept disabled in `configs/model_refresh.json` until a live provider or exact OpenRouter ID is confirmed.
+
+## Budget Scenarios
+
+Supported scenarios are:
+
+- `low`: `0.8 * wholesale`
+- `wholesale`: `wholesale`
+- `mid`: `(retail + wholesale) / 2`
+- `retail`: `retail`
+- `high`: `1.2 * retail`
+
+The main refresh uses `wholesale,mid,retail`. `low` and `high` are reserved for targeted risk audits rather than the main leaderboard aggregate.
+
+## Results
+
+Results are saved under:
+
+```text
 results/
 └── seller_{seller_model}/
     └── {buyer_model}/
@@ -85,55 +93,47 @@ results/
                 └── product_{product_id}_exp_{experiment_num}.json
 ```
 
-Each result file contains:
-- Complete conversation history
-- Price offers
-- Negotiation outcome
-- Budget scenario
-- Model information
+Each result file contains the conversation history, extracted seller offers, negotiation outcome, budget scenario, and model metadata.
 
-### Main Result Analysis
+Summarize a run:
 
-In `data_postprocess/draw_result.ipynb`, we provide methods for calculating various metrics and generating visualizations, including:
-- Price Reduction Rate
-- Total Profit
-- Deal Rate
-- Profit Rate
-
-### Model Anomaly Analysis
-
-We provide comprehensive model anomaly analysis tools in `data_postprocess/draw_risk.ipynb`, which includes methods for analyzing various types of model anomalies:
-- Overpayment: Cases where the buyer pays significantly more than the market value
-- Constraint Violation: Instances where negotiation constraints are not properly followed
-- Deadlock: Situations where negotiations reach an impasse
-
-## 🚀 Project Structure
-
+```bash
+python3 scripts/summarize_results.py --results-dir results/model_refresh_2026
 ```
+
+## Project Structure
+
+```text
 .
-├── main.py                 # Main experiment runner
-├── Conversation.py         # Conversation management and negotiation logic
-├── LanguageModel.py        # LLM interface and API handling
-├── run_all.sh             # Shell script for running multiple experiments
-├── dataset/               # Contains product information
+├── main.py                         # Experiment runner
+├── Conversation.py                 # Negotiation flow
+├── LanguageModel.py                # LiteLLM model gate
+├── MarkAnomaly.py                  # Post-run anomaly labeling
+├── configs/model_refresh.json      # Current model-refresh plan
+├── dataset/
 │   ├── products.json
-│   └── products_mini.json
-└── data_postprocess/      # Data processing and analysis tools
-    ├── draw_result.ipynb       # Calculate metrics and generate visualizations
-    └── draw_risk.ipynb         # Model anomaly analysis
+│   ├── products_mini.json
+│   └── products_consumer_electronics.json
+├── scripts/
+│   ├── build_product_subset.py
+│   ├── run_model_refresh.py
+│   ├── summarize_results.py
+│   └── validate_openrouter_models.py
+└── data_postprocess/               # Analysis notebooks and plotting scripts
 ```
 
-## 🧾 Citation
-If you find our work useful in your research or applications, please consider citing:
+Treat `results/`, `logs/`, and `artifacts/` as generated output.
 
-**BibTeX:**
+## Citation
+
 ```bibtex
 @misc{zhu2025automatedriskygamemodeling,
-      title={The Automated but Risky Game: Modeling Agent-to-Agent Negotiations and Transactions in Consumer Markets}, 
+      title={The Automated but Risky Game: Modeling and Benchmarking Agent-to-Agent Negotiations and Transactions in Consumer Markets},
       author={Shenzhe Zhu and Jiao Sun and Yi Nian and Tobin South and Alex Pentland and Jiaxin Pei},
       year={2025},
       eprint={2506.00073},
       archivePrefix={arXiv},
       primaryClass={cs.AI},
-      url={https://arxiv.org/abs/2506.00073}, 
+      url={https://arxiv.org/abs/2506.00073},
 }
+```

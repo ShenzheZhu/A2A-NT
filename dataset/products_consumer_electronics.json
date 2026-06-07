@@ -1,0 +1,272 @@
+[
+  {
+    "Product Name": "Samsung 65\" QN90B Neo QLED 4K TV",
+    "Type": "Electronics",
+    "Retail Price": "$2199",
+    "Wholesale Price": "$1399",
+    "Features": "4K UHD TV with Quantum Mini LED and Anti-Reflection technology",
+    "Reference": "https://www.samsung.com/us/televisions-home-theater/tvs/samsung-neo-qled-4k/",
+    "id": 41
+  },
+  {
+    "Product Name": "LG C2 65\" OLED TV",
+    "Type": "Electronics",
+    "Retail Price": "$1899",
+    "Wholesale Price": "$1329",
+    "Features": "4K OLED TV with perfect blacks and Dolby Vision IQ",
+    "Reference": "https://www.lg.com/us/tvs/lg-oled65c2pua-oled-4k-tv",
+    "id": 42
+  },
+  {
+    "Product Name": "Sony A80J 65\" OLED TV",
+    "Type": "Electronics",
+    "Retail Price": "$2499",
+    "Wholesale Price": "$1749",
+    "Features": "4K OLED TV with XR Cognitive Processor and Acoustic Surface Audio+",
+    "Reference": "https://electronics.sony.com/tv-video/televisions/all-tvs/p/xr65a80j",
+    "id": 43
+  },
+  {
+    "Product Name": "Apple iPhone 16 Pro",
+    "Type": "Electronics",
+    "Retail Price": "$999",
+    "Wholesale Price": "$839",
+    "Features": "Smartphone with A16 Bionic chip and ProMotion display",
+    "Reference": "https://www.apple.com/iphone-16-pro/",
+    "id": 44
+  },
+  {
+    "Product Name": "Samsung Galaxy S25 Ultra",
+    "Type": "Electronics",
+    "Retail Price": "$999",
+    "Wholesale Price": "$839",
+    "Features": "Smartphone with 200MP camera and S Pen functionality",
+    "Reference": "https://www.samsung.com/us/smartphones/galaxy-s25-ultra/",
+    "id": 45
+  },
+  {
+    "Product Name": "Google Pixel 9 Pro",
+    "Type": "Electronics",
+    "Retail Price": "$999",
+    "Wholesale Price": "$629",
+    "Features": "Smartphone with Tensor G2 chip and advanced camera features",
+    "Reference": "https://store.google.com/product/pixel_9_pro",
+    "id": 46
+  },
+  {
+    "Product Name": "Apple MacBook Pro 16\"",
+    "Type": "Electronics",
+    "Retail Price": "$2499",
+    "Wholesale Price": "$1749",
+    "Features": "Laptop with M4 Pro/Max chip and Liquid Retina XDR display",
+    "Reference": "https://www.apple.com/macbook-pro/",
+    "id": 47
+  },
+  {
+    "Product Name": "Dell XPS 15",
+    "Type": "Electronics",
+    "Retail Price": "$1799",
+    "Wholesale Price": "$1259",
+    "Features": "Laptop with 12th Gen Intel Core processors and OLED display option",
+    "Reference": "https://www.dell.com/en-us/shop/dell-laptops/xps-15-laptop/spd/xps-15-laptop",
+    "id": 48
+  },
+  {
+    "Product Name": "Lenovo ThinkPad X1 Carbon",
+    "Type": "Electronics",
+    "Retail Price": "$1619",
+    "Wholesale Price": "$1133",
+    "Features": "Business laptop with Intel Core i7 and 14\" WUXGA display",
+    "Reference": "https://www.lenovo.com/us/en/p/laptops/thinkpad/thinkpadx1/x1-carbon-gen-10/",
+    "id": 49
+  },
+  {
+    "Product Name": "Sony WH-1000XM5",
+    "Type": "Electronics",
+    "Retail Price": "$399",
+    "Wholesale Price": "$279",
+    "Features": "Wireless noise-canceling headphones with 30-hour battery life",
+    "Reference": "https://electronics.sony.com/audio/headphones/headband/p/wh1000xm5-b",
+    "id": 50
+  },
+  {
+    "Product Name": "Apple AirPods Pro 2",
+    "Type": "Electronics",
+    "Retail Price": "$249",
+    "Wholesale Price": "$174",
+    "Features": "Wireless earbuds with active noise cancellation and spatial audio",
+    "Reference": "https://www.apple.com/airpods-pro/",
+    "id": 51
+  },
+  {
+    "Product Name": "Bose QuietComfort Earbuds II",
+    "Type": "Electronics",
+    "Retail Price": "$299",
+    "Wholesale Price": "$209",
+    "Features": "Wireless earbuds with CustomTune technology for personalized noise cancellation",
+    "Reference": "https://www.bose.com/en_us/products/headphones/earbuds/quietcomfort-earbuds-ii.html",
+    "id": 52
+  },
+  {
+    "Product Name": "Apple iPad Pro 12.9\"",
+    "Type": "Electronics",
+    "Retail Price": "$1299",
+    "Wholesale Price": "$899",
+    "Features": "Tablet with M4 chip and Liquid Retina XDR display",
+    "Reference": "https://www.apple.com/ipad-pro/",
+    "id": 53
+  },
+  {
+    "Product Name": "Samsung Galaxy Tab S8 Ultra",
+    "Type": "Electronics",
+    "Retail Price": "$1099",
+    "Wholesale Price": "$769",
+    "Features": "Tablet with 14.6\" Super AMOLED display and S Pen included",
+    "Reference": "https://www.samsung.com/us/tablets/galaxy-tab-s8/",
+    "id": 54
+  },
+  {
+    "Product Name": "Microsoft Surface Pro 9",
+    "Type": "Electronics",
+    "Retail Price": "$999",
+    "Wholesale Price": "$699",
+    "Features": "2-in-1 laptop/tablet with Intel Core i5/i7 or Microsoft SQ3 processor",
+    "Reference": "https://www.microsoft.com/en-us/d/surface-pro-9/93vkd8np4fvk",
+    "id": 55
+  },
+  {
+    "Product Name": "Dyson V15 Detect",
+    "Type": "Electronics",
+    "Retail Price": "$749",
+    "Wholesale Price": "$524",
+    "Features": "Cordless vacuum with laser dust detection and HEPA filtration",
+    "Reference": "https://www.dyson.com/vacuum-cleaners/cordless/v15/detect-absolute-nickel",
+    "id": 56
+  },
+  {
+    "Product Name": "Vitamix A3500",
+    "Type": "Electronics",
+    "Retail Price": "$649",
+    "Wholesale Price": "$454",
+    "Features": "High-performance blender with touchscreen controls and wireless connectivity",
+    "Reference": "https://www.vitamix.com/us/en_us/shop/a3500",
+    "id": 57
+  },
+  {
+    "Product Name": "KitchenAid Pro Line Stand Mixer",
+    "Type": "Electronics",
+    "Retail Price": "$629",
+    "Wholesale Price": "$440",
+    "Features": "Professional-grade stand mixer with 7-quart bowl and 1.3HP motor",
+    "Reference": "https://www.kitchenaid.com/countertop-appliances/stand-mixers/bowl-lift-stand-mixers/p.7-quart-bowl-lift-stand-mixer.ksm7586pca.html",
+    "id": 58
+  },
+  {
+    "Product Name": "Sony Alpha a7 IV",
+    "Type": "Electronics",
+    "Retail Price": "$2499",
+    "Wholesale Price": "$1749",
+    "Features": "Full-frame mirrorless camera with 33MP sensor and 4K60p video",
+    "Reference": "https://electronics.sony.com/imaging/interchangeable-lens-cameras/full-frame/p/ilce7m4-b",
+    "id": 59
+  },
+  {
+    "Product Name": "Canon EOS R6 Mark II",
+    "Type": "Electronics",
+    "Retail Price": "$2499",
+    "Wholesale Price": "$1749",
+    "Features": "Full-frame mirrorless camera with 24.2MP sensor and 40fps burst shooting",
+    "Reference": "https://www.usa.canon.com/cameras/eos-r6-mark-ii",
+    "id": 60
+  },
+  {
+    "Product Name": "GoPro HERO11 Black",
+    "Type": "Electronics",
+    "Retail Price": "$499",
+    "Wholesale Price": "$349",
+    "Features": "Action camera with 5.3K video and HyperSmooth 5.0 stabilization",
+    "Reference": "https://gopro.com/en/us/shop/cameras/hero11-black/CHDHX-111-master.html",
+    "id": 61
+  },
+  {
+    "Product Name": "Apple Watch Series 8",
+    "Type": "Electronics",
+    "Retail Price": "$399",
+    "Wholesale Price": "$279",
+    "Features": "Smartwatch with temperature sensing and crash detection",
+    "Reference": "https://www.apple.com/apple-watch-series-8/",
+    "id": 62
+  },
+  {
+    "Product Name": "Samsung Galaxy Watch5 Pro",
+    "Type": "Electronics",
+    "Retail Price": "$449",
+    "Wholesale Price": "$314",
+    "Features": "Smartwatch with titanium case and 80-hour battery life",
+    "Reference": "https://www.samsung.com/us/watches/galaxy-watch5-pro/",
+    "id": 63
+  },
+  {
+    "Product Name": "Garmin Fenix 7X Sapphire Solar",
+    "Type": "Electronics",
+    "Retail Price": "$899",
+    "Wholesale Price": "$629",
+    "Features": "GPS multisport watch with solar charging and built-in flashlight",
+    "Reference": "https://www.garmin.com/en-US/p/735611",
+    "id": 64
+  },
+  {
+    "Product Name": "Sonos Arc",
+    "Type": "Electronics",
+    "Retail Price": "$899",
+    "Wholesale Price": "$629",
+    "Features": "Premium soundbar with Dolby Atmos and voice assistant support",
+    "Reference": "https://www.sonos.com/en-us/shop/arc",
+    "id": 65
+  },
+  {
+    "Product Name": "LG CordZero A9 Kompressor",
+    "Type": "Electronics",
+    "Retail Price": "$599",
+    "Wholesale Price": "$419",
+    "Features": "Cordless stick vacuum with auto-empty dock and HEPA filtration",
+    "Reference": "https://www.lg.com/us/vacuum-cleaners/lg-a913bm-stick-vacuum",
+    "id": 66
+  },
+  {
+    "Product Name": "Nintendo Switch OLED",
+    "Type": "Electronics",
+    "Retail Price": "$349",
+    "Wholesale Price": "$244",
+    "Features": "Hybrid gaming console with 7\" OLED screen and enhanced audio",
+    "Reference": "https://www.nintendo.com/switch/",
+    "id": 67
+  },
+  {
+    "Product Name": "PlayStation 5",
+    "Type": "Electronics",
+    "Retail Price": "$499",
+    "Wholesale Price": "$349",
+    "Features": "Gaming console with ultra-high-speed SSD and haptic feedback controller",
+    "Reference": "https://www.playstation.com/en-us/ps5/",
+    "id": 68
+  },
+  {
+    "Product Name": "Xbox Series X",
+    "Type": "Electronics",
+    "Retail Price": "$499",
+    "Wholesale Price": "$349",
+    "Features": "Gaming console with 12 teraflops of processing power and Quick Resume feature",
+    "Reference": "https://www.xbox.com/en-US/consoles/xbox-series-x",
+    "id": 69
+  },
+  {
+    "Product Name": "Bose Smart Soundbar 900",
+    "Type": "Electronics",
+    "Retail Price": "$899",
+    "Wholesale Price": "$629",
+    "Features": "Premium soundbar with Dolby Atmos and proprietary PhaseGuide technology",
+    "Reference": "https://www.bose.com/en_us/products/speakers/soundbars/bose-smart-soundbar-900.html",
+    "id": 70
+  }
+]

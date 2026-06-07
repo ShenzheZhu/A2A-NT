@@ -95,6 +95,8 @@ yarn-error.log*
 
 # JSON files
 *.json
+!configs/*.json
+!dataset/*.json
 !package.json
 !package-lock.json
 !tsconfig.json
