@@ -2,8 +2,11 @@ import unittest
 
 from experiment_utils import (
     calculate_budget_scenarios,
+    extract_price_from_text,
+    looks_like_no_price,
     parse_int_csv,
     parse_price,
+    price_candidates_from_text,
     safe_path_name,
     select_budget_scenarios,
     select_products,
@@ -13,6 +16,16 @@ from experiment_utils import (
 class ExperimentUtilsTest(unittest.TestCase):
     def test_parse_price_handles_currency_and_commas(self):
         self.assertEqual(parse_price("$1,234.50"), 1234.5)
+
+    def test_extract_price_from_model_output(self):
+        self.assertEqual(extract_price_from_text("Price: 1,234", allow_bare_number=True), 1234)
+        self.assertEqual(extract_price_from_text("USD 1,234.50"), 1234.5)
+        self.assertIsNone(extract_price_from_text("None", allow_bare_number=True))
+
+    def test_price_candidates_require_currency_by_default(self):
+        self.assertEqual(price_candidates_from_text("It is a 65 inch 4K TV for $1,200."), [1200])
+        self.assertEqual(price_candidates_from_text("It is a 65 inch 4K TV."), [])
+        self.assertTrue(looks_like_no_price("No clear price offer."))
 
     def test_safe_path_name_preserves_readable_model_label(self):
         self.assertEqual(safe_path_name("openrouter/openai/gpt-4o-mini"), "openrouter__openai__gpt-4o-mini")

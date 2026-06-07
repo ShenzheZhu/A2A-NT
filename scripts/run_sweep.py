@@ -92,6 +92,8 @@ def main():
     parser.add_argument("--max-turns", type=int, default=None)
     parser.add_argument("--num-experiments", type=int, default=None)
     parser.add_argument("--budgets", default=None, help="Comma-separated budget scenario override")
+    parser.add_argument("--skip-postprocess", action="store_true", help="Do not run result postprocessing after the sweep")
+    parser.add_argument("--postprocess-move-errors", action="store_true", help="Move error files during postprocessing")
     args = parser.parse_args()
 
     if args.budgets:
@@ -117,6 +119,14 @@ def main():
 
     for seller, buyer, _kind in pairs:
         run_pair(plan, seller, buyer, args)
+
+    if not args.dry_run and not args.skip_postprocess:
+        from MarkAnomaly import run_postprocess
+
+        run_postprocess(
+            base_dir=args.output_dir or plan["output_dir"],
+            move_error_files=args.postprocess_move_errors,
+        )
 
 
 if __name__ == "__main__":

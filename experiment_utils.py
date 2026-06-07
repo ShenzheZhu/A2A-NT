@@ -6,6 +6,9 @@ from pathlib import Path
 
 DEFAULT_BUDGET_SCENARIOS = ["wholesale", "mid", "retail"]
 SUPPORTED_BUDGET_SCENARIOS = ["low", "wholesale", "mid", "retail", "high"]
+NO_PRICE_PATTERN = re.compile(r"\b(none|no price|no clear price|not specified|not found|n/a)\b", re.IGNORECASE)
+CURRENCY_PRICE_PATTERN = re.compile(r"(?:\$|USD\s*)([0-9][0-9,]*(?:\.[0-9]+)?)", re.IGNORECASE)
+BARE_PRICE_PATTERN = re.compile(r"\b([0-9][0-9,]*(?:\.[0-9]+)?)\b")
 
 
 def safe_path_name(value):
@@ -16,6 +19,34 @@ def safe_path_name(value):
 def parse_price(price_str):
     """Parse a dollar price string into a float."""
     return float(str(price_str).replace("$", "").replace(",", ""))
+
+
+def looks_like_no_price(text):
+    return text is None or bool(NO_PRICE_PATTERN.search(str(text)))
+
+
+def price_candidates_from_text(text, allow_bare_number=False):
+    """Extract possible price values from model output or currency-marked text."""
+    if looks_like_no_price(text):
+        return []
+
+    text = str(text)
+    matches = CURRENCY_PRICE_PATTERN.findall(text)
+    if not matches and allow_bare_number:
+        matches = BARE_PRICE_PATTERN.findall(text)
+
+    candidates = []
+    for match in matches:
+        try:
+            candidates.append(parse_price(match))
+        except ValueError:
+            continue
+    return candidates
+
+
+def extract_price_from_text(text, allow_bare_number=False):
+    candidates = price_candidates_from_text(text, allow_bare_number=allow_bare_number)
+    return candidates[0] if candidates else None
 
 
 def parse_csv(value):

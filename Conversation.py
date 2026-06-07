@@ -1,8 +1,12 @@
 import json
 from LanguageModel import LanguageModel
 import os
-import re
-from experiment_utils import parse_price
+from experiment_utils import (
+    extract_price_from_text,
+    looks_like_no_price,
+    parse_price,
+    price_candidates_from_text,
+)
 
 class Conversation:
     def __init__(self, product_data, buyer_model="gpt-3.5-turbo", seller_model="gpt-3.5-turbo", summary_model="gpt-3.5-turbo", max_turns=20, experiment_num=0, budget=None):
@@ -26,6 +30,7 @@ class Conversation:
         # List to track seller's price offers throughout the negotiation
         # Initialize as empty list, we'll append as we go
         self.seller_price_offers = []
+        self.price_extraction_events = []
         # Add the original retail price as the first element
         retail_price_str = product_data["Retail Price"]
         self.seller_price_offers.append(parse_price(retail_price_str))
@@ -167,30 +172,43 @@ class Conversation:
         
         extracted_response = self.summary_model.get_response(prompt).strip()
         
-        # If the response contains 'None', return None (as a value)
-        if 'None' in extracted_response:
+        event = {
+            "seller_message": seller_message,
+            "summary_response": extracted_response,
+            "source": None,
+            "price": None,
+            "status": None,
+        }
+
+        if looks_like_no_price(extracted_response):
+            event["status"] = "no_price"
+            self.price_extraction_events.append(event)
             return None
         
-        # Handle case where model returns "Price: $XXXX" instead of just "$XXXX"
         print(f"Raw extracted price: '{extracted_response}'")
-            
-        # Look for a dollar sign ($) and extract the price that follows
-        # Pattern matches: $1,234,567.89 or $1234567.89 or $1,234,567 or $1234567
-        price_match = re.search(r'\$([0-9,]+(\.[0-9]+)?)', extracted_response)
-        if price_match:
-            # Extract just the digits, commas, and decimal point after the $ sign
-            price_str = price_match.group(1)
-            try:
-                # Remove commas and convert to float
-                price_value = float(price_str.replace(',', ''))
-                print(f"Successfully extracted price: {price_value}")
-                return price_value
-            except (ValueError, AttributeError):
-                print(f"Warning: Could not convert matched price '{price_str}' to a number")
-                return None
-        else:
-            print(f"Warning: No price with $ symbol found in '{extracted_response}'")
-            return None
+
+        price_value = extract_price_from_text(extracted_response, allow_bare_number=True)
+        if price_value is not None:
+            event.update({"source": "summary_response", "price": price_value, "status": "parsed"})
+            self.price_extraction_events.append(event)
+            print(f"Successfully extracted price: {price_value}")
+            return price_value
+
+        # Fallback only when the seller message has exactly one currency-marked price.
+        # This avoids mistaking warranty/add-on prices or product specs for the deal price.
+        seller_candidates = price_candidates_from_text(seller_message, allow_bare_number=False)
+        if len(seller_candidates) == 1:
+            price_value = seller_candidates[0]
+            event.update({"source": "seller_message_single_currency", "price": price_value, "status": "parsed"})
+            self.price_extraction_events.append(event)
+            print(f"Extracted fallback seller-message price: {price_value}")
+            return price_value
+
+        event["status"] = "unparsed"
+        event["seller_currency_candidates"] = seller_candidates
+        self.price_extraction_events.append(event)
+        print(f"Warning: Could not parse a unique price from '{extracted_response}'")
+        return None
         
     def evaluate_negotiation_state(self):
         """Use the summary model to evaluate if the negotiation should continue."""
@@ -291,7 +309,7 @@ class Conversation:
             price_offer = self.extract_price_from_seller_message(seller_response)
             
             # If there's a price in this turn, update current price
-            if price_offer:
+            if price_offer is not None:
                 self.current_price_offer = price_offer
             
             # Append the current price offer
@@ -347,6 +365,7 @@ class Conversation:
             "product_data": self.product_data,
             "conversation_history": self.conversation_history,
             "seller_price_offers": self.seller_price_offers,
+            "price_extraction_events": self.price_extraction_events,
             "budget": self.budget,  # Include budget in the saved data
             "budget_scenario": self.budget_scenario,  # Include budget scenario name
             "completed_turns": self.completed_turns,  # Include the actual number of turns
