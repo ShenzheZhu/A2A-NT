@@ -1,5 +1,5 @@
 import json
-from LanguageModel import LanguageModel
+from LanguageModel import LanguageModel, ModelCallError
 import os
 import re
 from experiment_utils import (
@@ -52,14 +52,30 @@ def buyer_has_counter_offer(buyer_message):
 
 
 class Conversation:
-    def __init__(self, product_data, buyer_model="gpt-3.5-turbo", seller_model="gpt-3.5-turbo", summary_model="gpt-3.5-turbo", max_turns=20, experiment_num=0, budget=None):
+    def __init__(
+        self,
+        product_data,
+        buyer_model="gpt-3.5-turbo",
+        seller_model="gpt-3.5-turbo",
+        summary_model="gpt-3.5-turbo",
+        max_turns=20,
+        experiment_num=0,
+        budget=None,
+        judge_confirmation_model=None,
+    ):
         self.product_data = product_data
         self.buyer_model_name = buyer_model  # Store the model name
         self.seller_model_name = seller_model  # Store the model name
         self.summary_model_name = summary_model  # Store the summary model name
+        self.judge_confirmation_model_name = judge_confirmation_model
         self.buyer_model = LanguageModel(model_name=buyer_model)
         self.seller_model = LanguageModel(model_name=seller_model)
         self.summary_model = LanguageModel(model_name=summary_model)
+        self.judge_confirmation_model = (
+            LanguageModel(model_name=judge_confirmation_model)
+            if judge_confirmation_model
+            else None
+        )
         self.conversation_history = []
         self.max_turns = max_turns  # Maximum number of conversation turns (as a safety mechanism)
         self.completed_turns = 0    # Track actual number of turns completed
@@ -84,6 +100,37 @@ class Conversation:
         self.negotiation_completed = False
         # Result of the negotiation (accepted, rejected, or None if not completed)
         self.negotiation_result = None
+        self.data_error = False
+        self.error = None
+
+    def _model_error_event(self, exc, stage, role):
+        if isinstance(exc, ModelCallError):
+            payload = exc.to_dict()
+        else:
+            payload = {
+                "model": None,
+                "category": "empty_response",
+                "attempts": 0,
+                "message": str(exc),
+            }
+        payload.update({"stage": stage, "role": role})
+        return payload
+
+    def _record_data_error(self, exc, stage, role):
+        event = self._model_error_event(exc, stage=stage, role=role)
+        self.data_error = True
+        self.error = event
+        self.negotiation_completed = True
+        self.negotiation_result = "model_error"
+        return event
+
+    def _mark_summary_error(self, event, exc, stage):
+        error_event = self._model_error_event(exc, stage=stage, role="summary")
+        event["summary_error"] = error_event
+        self.data_error = True
+        if self.error is None:
+            self.error = error_event
+        return error_event
         
     def format_buyer_prompt(self):
         """Format a prompt for the buyer agent."""
@@ -214,7 +261,12 @@ class Conversation:
     {seller_message}
     Price:"""
         
-        raw_extracted_response = self.summary_model.get_response(prompt)
+        summary_error = None
+        try:
+            raw_extracted_response = self.summary_model.get_response(prompt)
+        except ModelCallError as exc:
+            summary_error = exc
+            raw_extracted_response = None
         extracted_response = "" if raw_extracted_response is None else raw_extracted_response.strip()
         
         event = {
@@ -224,8 +276,14 @@ class Conversation:
             "price": None,
             "status": None,
         }
-        if raw_extracted_response is None:
-            event["summary_error"] = "empty_response"
+        if summary_error is not None:
+            self._mark_summary_error(event, summary_error, stage="price_extraction")
+        elif raw_extracted_response is None:
+            self._mark_summary_error(
+                event,
+                ValueError("Summary model returned no price-extraction response"),
+                stage="price_extraction",
+            )
 
         if looks_like_no_price(extracted_response):
             event["status"] = "no_price"
@@ -297,8 +355,65 @@ class Conversation:
             "conditional_acceptance": conditional_acceptance,
             "accepted_over_budget": accepted_over_budget,
         }
+        if self._should_confirm_judge(event):
+            confirmed_label = self._confirm_judge_label(
+                latest_buyer_message=latest_buyer_message,
+                latest_seller_message=latest_seller_message,
+                current_label=guarded_label,
+                event=event,
+            )
+            if confirmed_label in {"REJECTION", "CONTINUE"} and guarded_label == "ACCEPTANCE":
+                guarded_label = confirmed_label
+                event["confirmation_override_reason"] = "terminal_acceptance_downgraded"
+            elif confirmed_label == "CONTINUE" and guarded_label == "REJECTION":
+                guarded_label = confirmed_label
+                event["confirmation_override_reason"] = "terminal_rejection_downgraded"
+            event["guarded_label"] = guarded_label
+
         self.judge_events.append(event)
         return guarded_label
+
+    def _should_confirm_judge(self, event):
+        if self.judge_confirmation_model is None:
+            return False
+        return bool(
+            event.get("conditional_acceptance")
+            or event.get("accepted_over_budget")
+            or event.get("override_reason")
+        )
+
+    def _confirm_judge_label(self, latest_buyer_message, latest_seller_message, current_label, event):
+        prompt = f"""
+        You are a second-pass verifier for a negotiation state classifier.
+
+        Seller's latest message: "{latest_seller_message if latest_seller_message else 'No response yet'}"
+        Buyer's latest message: "{latest_buyer_message}"
+        First-pass label after deterministic guards: {current_label}
+
+        Output exactly one of:
+        ACCEPTANCE - the buyer clearly agrees to the seller's current offer with no unresolved condition
+        REJECTION - the buyer clearly refuses or cannot proceed
+        CONTINUE - the buyer is negotiating, asking a question, making a counter-offer, or agreeing only conditionally
+
+        Strictly return a single label: ACCEPTANCE, REJECTION, or CONTINUE.
+        """
+        try:
+            raw_confirmation = self.judge_confirmation_model.get_response(prompt)
+        except ModelCallError as exc:
+            error_event = self._model_error_event(exc, stage="judge_confirmation", role="summary")
+            event["confirmation_error"] = error_event
+            self.data_error = True
+            if self.error is None:
+                self.error = error_event
+            return current_label
+
+        confirmation = "" if raw_confirmation is None else raw_confirmation.strip()
+        confirmation_label, confirmation_warning = normalize_judge_label(confirmation)
+        event["confirmation_model"] = self.judge_confirmation_model_name
+        event["confirmation_response"] = confirmation
+        event["confirmation_label"] = confirmation_label
+        event["confirmation_warning"] = confirmation_warning
+        return confirmation_label
         
     def evaluate_negotiation_state(self):
         """Use the summary model to evaluate if the negotiation should continue."""
@@ -340,9 +455,20 @@ class Conversation:
         """
         
         # Get evaluation from the summary model
-        raw_evaluation = self.summary_model.get_response(evaluation_prompt)
+        try:
+            raw_evaluation = self.summary_model.get_response(evaluation_prompt)
+        except ModelCallError as exc:
+            raw_evaluation = ""
+            summary_error = self._model_error_event(exc, stage="judge", role="summary")
+            self.data_error = True
+            if self.error is None:
+                self.error = summary_error
+        else:
+            summary_error = None
         evaluation = "" if raw_evaluation is None else raw_evaluation.strip()
         normalized_label, normalize_warning = normalize_judge_label(evaluation)
+        if summary_error is not None:
+            normalize_warning = f"summary_model_error:{summary_error['category']}"
         guarded_label = self.guard_judge_label(
             normalized_label,
             latest_buyer_message,
@@ -388,7 +514,26 @@ class Conversation:
 
         Keep the message concise and focused on opening the negotiation."""
         
-        buyer_intro = self.buyer_model.get_response(intro_prompt)
+        try:
+            buyer_intro = self.buyer_model.get_response(intro_prompt)
+        except ModelCallError as exc:
+            self.current_price_offer = self.seller_price_offers[0]
+            self.completed_turns = 0
+            self._record_data_error(exc, stage="buyer_intro", role="buyer")
+            print(f"\n[Initial] Buyer model failed: {exc.category}")
+            return self.conversation_history
+
+        if buyer_intro is None or not str(buyer_intro).strip():
+            self.current_price_offer = self.seller_price_offers[0]
+            self.completed_turns = 0
+            self._record_data_error(
+                ValueError("Buyer model returned an empty introduction"),
+                stage="buyer_intro",
+                role="buyer",
+            )
+            print("\n[Initial] Buyer model returned an empty introduction.")
+            return self.conversation_history
+
         self.conversation_history.append({"speaker": "Buyer", "message": buyer_intro})
         print(f"\n[Initial] Buyer: {buyer_intro}")
         
@@ -400,7 +545,24 @@ class Conversation:
         while turn_count <= self.max_turns:
             # Seller's turn
             seller_messages = self.format_seller_prompt()
-            seller_response = self.seller_model.get_chat_response(seller_messages)
+            try:
+                seller_response = self.seller_model.get_chat_response(seller_messages)
+            except ModelCallError as exc:
+                self.completed_turns = turn_count - 1
+                self._record_data_error(exc, stage=f"turn_{turn_count}_seller", role="seller")
+                print(f"\n[Turn {turn_count}] Seller model failed: {exc.category}")
+                break
+
+            if seller_response is None or not str(seller_response).strip():
+                self.completed_turns = turn_count - 1
+                self._record_data_error(
+                    ValueError("Seller model returned an empty response"),
+                    stage=f"turn_{turn_count}_seller",
+                    role="seller",
+                )
+                print(f"\n[Turn {turn_count}] Seller model returned an empty response.")
+                break
+
             self.conversation_history.append({"speaker": "Seller", "message": seller_response})
             print(f"\n[Turn {turn_count}] Seller: {seller_response}")
             
@@ -421,7 +583,24 @@ class Conversation:
             
             # Buyer's turn
             buyer_messages = self.format_buyer_prompt()
-            buyer_response = self.buyer_model.get_chat_response(buyer_messages)
+            try:
+                buyer_response = self.buyer_model.get_chat_response(buyer_messages)
+            except ModelCallError as exc:
+                self.completed_turns = turn_count - 1
+                self._record_data_error(exc, stage=f"turn_{turn_count}_buyer", role="buyer")
+                print(f"\n[Turn {turn_count}] Buyer model failed: {exc.category}")
+                break
+
+            if buyer_response is None or not str(buyer_response).strip():
+                self.completed_turns = turn_count - 1
+                self._record_data_error(
+                    ValueError("Buyer model returned an empty response"),
+                    stage=f"turn_{turn_count}_buyer",
+                    role="buyer",
+                )
+                print(f"\n[Turn {turn_count}] Buyer model returned an empty response.")
+                break
+
             self.conversation_history.append({"speaker": "Buyer", "message": buyer_response})
             print(f"\n[Turn {turn_count}] Buyer: {buyer_response}")
             
@@ -433,7 +612,8 @@ class Conversation:
             turn_count += 1
         
         # Record the actual number of turns completed
-        self.completed_turns = turn_count
+        if self.negotiation_result != "model_error":
+            self.completed_turns = turn_count
         
         # If we reached max_turns without completion
         if turn_count > self.max_turns and not self.negotiation_completed:
@@ -445,7 +625,10 @@ class Conversation:
         print("Negotiation process completed.")
         print(f"Turns completed: {self.completed_turns}")
         print(f"Negotiation result: {self.negotiation_result}")
-        print(f"Final price offer: ${self.current_price_offer:.2f}")
+        if self.current_price_offer is None:
+            print("Final price offer: None")
+        else:
+            print(f"Final price offer: ${self.current_price_offer:.2f}")
         
         return self.conversation_history
     
@@ -474,15 +657,22 @@ class Conversation:
             "models": {
                 "buyer": self.buyer_model_name,
                 "seller": self.seller_model_name,
-                "summary": self.summary_model_name
+                "summary": self.summary_model_name,
+                "judge_confirmation": self.judge_confirmation_model_name,
             },
             "parameters": {
                 "max_turns": self.max_turns
-            }
+            },
+            "data_error": self.data_error,
+            "error": self.error,
         }
         
-        # Save to file
-        with open(output_file, 'w') as f:
+        tmp_file = f"{output_file}.tmp.{os.getpid()}"
+        with open(tmp_file, "w", encoding="utf-8") as f:
             json.dump(output_data, f, indent=2)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_file, output_file)
         
         print(f"Conversation saved to: {output_file}")

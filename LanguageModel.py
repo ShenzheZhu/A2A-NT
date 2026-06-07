@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 _LITELLM_COMPLETION = None
 
+RETRIABLE_ERROR_CATEGORIES = {"rate_limit", "timeout", "transient", "empty_response"}
+FATAL_ERROR_CATEGORIES = {"auth", "billing_or_quota", "model_unavailable", "bad_request"}
+
 
 MODEL_ALIASES = {
     "gpt-4.1": "openrouter/openai/gpt-4.1",
@@ -91,6 +94,107 @@ def _validate_messages(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
     return validated
 
 
+class ModelCallError(RuntimeError):
+    """Structured failure from a model provider call."""
+
+    def __init__(self, model: str, category: str, message: str, attempts: int = 0):
+        self.model = model
+        self.category = category
+        self.attempts = attempts
+        super().__init__(f"{category} error for {model} after {attempts} attempt(s): {message}")
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "model": self.model,
+            "category": self.category,
+            "attempts": self.attempts,
+            "message": str(self),
+        }
+
+
+def _status_code_from_exception(exc: Exception) -> Optional[int]:
+    for attr in ("status_code", "http_status", "status"):
+        value = getattr(exc, attr, None)
+        if isinstance(value, int):
+            return value
+    response = getattr(exc, "response", None)
+    value = getattr(response, "status_code", None)
+    return value if isinstance(value, int) else None
+
+
+def classify_model_error(exc: Exception) -> str:
+    """Classify provider failures into fatal or retriable buckets."""
+    status_code = _status_code_from_exception(exc)
+    text = f"{type(exc).__name__}: {exc}".lower()
+
+    if status_code in {401, 403} or any(
+        marker in text
+        for marker in (
+            "unauthorized",
+            "invalid api key",
+            "incorrect api key",
+            "authentication",
+            "permission denied",
+        )
+    ):
+        return "auth"
+
+    if status_code == 402 or any(
+        marker in text
+        for marker in (
+            "insufficient balance",
+            "insufficient credit",
+            "insufficient credits",
+            "quota exceeded",
+            "billing",
+            "payment required",
+            "out of credits",
+        )
+    ):
+        return "billing_or_quota"
+
+    if status_code == 404 or any(
+        marker in text
+        for marker in (
+            "model not found",
+            "not a valid model",
+            "no endpoints found",
+            "provider routing failed",
+        )
+    ):
+        return "model_unavailable"
+
+    if status_code == 400 or any(
+        marker in text
+        for marker in (
+            "bad request",
+            "invalid request",
+            "context length",
+            "maximum context",
+            "unsupported parameter",
+        )
+    ):
+        return "bad_request"
+
+    if status_code == 429 or "rate limit" in text or "too many requests" in text:
+        return "rate_limit"
+
+    if status_code in {408, 500, 502, 503, 504}:
+        return "transient"
+
+    if isinstance(exc, TimeoutError) or "timeout" in text or "timed out" in text:
+        return "timeout"
+
+    if "empty response" in text or "content is empty" in text:
+        return "empty_response"
+
+    return "transient"
+
+
+def is_retriable_model_error(category: str) -> bool:
+    return category in RETRIABLE_ERROR_CATEGORIES
+
+
 class LanguageModel:
     def __init__(self, model_name: str = "gpt-3.5-turbo"):
         self.requested_model_name = model_name
@@ -98,6 +202,8 @@ class LanguageModel:
         self._last_request_time = 0.0
         self._rate_limit_delay = float(os.getenv("A2ANT_REQUEST_DELAY_SECONDS", "1.0"))
         self._max_retries = int(os.getenv("A2ANT_MAX_RETRIES", "5"))
+        self.last_call_attempts = 0
+        self.last_error_categories = []
         self._setup_credentials()
 
     def _setup_credentials(self) -> None:
@@ -120,11 +226,14 @@ class LanguageModel:
         messages: List[Dict[str, str]],
         temperature: float = 0.7,
         max_tokens: int = 1000,
-    ) -> Optional[str]:
+    ) -> str:
         messages = _validate_messages(messages)
         retry_delay = 2.0
+        self.last_call_attempts = 0
+        self.last_error_categories = []
 
         for attempt in range(1, self._max_retries + 1):
+            self.last_call_attempts = attempt
             try:
                 self._enforce_rate_limit()
                 logger.debug("LiteLLM request model=%s messages=%s", self.model_name, json.dumps(messages))
@@ -142,25 +251,38 @@ class LanguageModel:
                     raise ValueError("LiteLLM response message content is empty")
                 return content
             except Exception as exc:
+                category = classify_model_error(exc)
+                self.last_error_categories.append(category)
                 logger.error(
-                    "LiteLLM attempt %s/%s failed for %s: %s",
+                    "LiteLLM attempt %s/%s failed for %s [%s]: %s",
                     attempt,
                     self._max_retries,
                     self.model_name,
+                    category,
                     exc,
                 )
-                if attempt == self._max_retries:
-                    return None
+                if not is_retriable_model_error(category) or attempt == self._max_retries:
+                    raise ModelCallError(
+                        model=self.model_name,
+                        category=category,
+                        message=str(exc),
+                        attempts=attempt,
+                    ) from exc
                 time.sleep(retry_delay)
                 retry_delay *= 2
-        return None
+        raise ModelCallError(
+            model=self.model_name,
+            category="transient",
+            message="Retry loop exhausted without a response",
+            attempts=self._max_retries,
+        )
 
     def get_response(
         self,
         prompt: str,
         temperature: float = 0.7,
         max_tokens: int = 1000,
-    ) -> Optional[str]:
+    ) -> str:
         return self._make_api_call(
             [{"role": "user", "content": prompt}],
             temperature=temperature,
@@ -172,5 +294,5 @@ class LanguageModel:
         messages: List[Dict[str, str]],
         temperature: float = 0.7,
         max_tokens: int = 1000,
-    ) -> Optional[str]:
+    ) -> str:
         return self._make_api_call(messages, temperature=temperature, max_tokens=max_tokens)

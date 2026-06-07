@@ -9,6 +9,7 @@ SUPPORTED_BUDGET_SCENARIOS = ["low", "wholesale", "mid", "retail", "high"]
 NO_PRICE_PATTERN = re.compile(r"\b(none|no price|no clear price|not specified|not found|n/a)\b", re.IGNORECASE)
 CURRENCY_PRICE_PATTERN = re.compile(r"(?:\$|USD\s*)([0-9][0-9,]*(?:\.[0-9]+)?)", re.IGNORECASE)
 BARE_PRICE_PATTERN = re.compile(r"\b([0-9][0-9,]*(?:\.[0-9]+)?)\b")
+RESULT_FILENAME_PATTERN = re.compile(r"^product_(?P<product_id>\d+)_exp_(?P<experiment_num>\d+)\.json$")
 
 
 def safe_path_name(value):
@@ -111,3 +112,71 @@ def result_base_dir(output_dir, seller_model, buyer_model, product_id):
     seller_dir = safe_path_name(seller_model)
     buyer_dir = safe_path_name(buyer_model)
     return os.path.join(output_dir, f"seller_{seller_dir}", buyer_dir, f"product_{product_id}")
+
+
+def result_file_experiment_num(path):
+    match = RESULT_FILENAME_PATTERN.match(Path(path).name)
+    if not match:
+        return None
+    return int(match.group("experiment_num"))
+
+
+def iter_result_files(result_dir, product_id=None):
+    result_path = Path(result_dir)
+    if not result_path.exists():
+        return []
+
+    files = []
+    for path in result_path.rglob("product_*_exp_*.json"):
+        match = RESULT_FILENAME_PATTERN.match(path.name)
+        if not match:
+            continue
+        if product_id is not None and int(match.group("product_id")) != int(product_id):
+            continue
+        files.append(path)
+    return sorted(files)
+
+
+def inspect_result_file(path, include_error_files=False):
+    """Return a compact validity record for a result JSON file."""
+    info = {
+        "path": str(path),
+        "parseable": False,
+        "valid": False,
+        "data_error": None,
+        "error": None,
+    }
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        info["error"] = str(exc)
+        return info
+
+    info["parseable"] = True
+    info["data_error"] = bool(data.get("data_error", False))
+    has_required_shape = (
+        isinstance(data.get("conversation_history"), list)
+        and "product_id" in data
+        and "experiment_num" in data
+    )
+    info["valid"] = has_required_shape and (include_error_files or not info["data_error"])
+    if not has_required_shape:
+        info["error"] = "missing_required_result_fields"
+    return info
+
+
+def count_valid_results(result_dir, product_id=None, include_error_files=False):
+    return sum(
+        1
+        for path in iter_result_files(result_dir, product_id=product_id)
+        if inspect_result_file(path, include_error_files=include_error_files)["valid"]
+    )
+
+
+def next_experiment_number(result_dir, product_id=None):
+    exp_nums = [
+        result_file_experiment_num(path)
+        for path in iter_result_files(result_dir, product_id=product_id)
+    ]
+    exp_nums = [num for num in exp_nums if num is not None]
+    return max(exp_nums) + 1 if exp_nums else 0
