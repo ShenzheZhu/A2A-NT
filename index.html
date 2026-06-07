@@ -1,616 +1,278 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="description"
-        content="Deformable Neural Radiance Fields creates free-viewpoint portraits (nerfies) from casually captured videos.">
-  <meta name="keywords" content="Nerfies, D-NeRF, NeRF">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The Automated but Risky Game: Modeling Agent-to-Agent Negotiations and Transactions in Consumer Markets</title>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A2A-NT studies automated agent-to-agent negotiations and transaction risks in consumer markets.">
+    <meta name="keywords" content="A2A-NT, agent-to-agent negotiation, AI agents, LLM benchmark, consumer markets">
+    <title>A2A-NT | Agent-to-Agent Negotiations and Transactions</title>
 
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-PYVRSFMDRL"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-PYVRSFMDRL"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-PYVRSFMDRL");
+    </script>
 
-    function gtag() {
-      dataLayer.push(arguments);
-    }
-
-    gtag('js', new Date());
-
-    gtag('config', 'G-PYVRSFMDRL');
-  </script>
-
-  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
-        rel="stylesheet">
-
-  <link rel="stylesheet" href="./static/css/bulma.min.css">
-  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
-  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
-  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
-  <link rel="stylesheet" href="./static/css/index.css">
-  <link rel="icon" href="./static/images/asset_agent/payment-security.png">
-
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <script defer src="./static/js/fontawesome.all.min.js"></script>
-  <script src="./static/js/bulma-carousel.min.js"></script>
-  <script src="./static/js/bulma-slider.min.js"></script>
-  <script src="./static/js/index.js"></script>
-  
-  <style>
-    /* University Carousel Styles */
-    #universityCarousel .carousel-item img {
-      max-height: 200px;
-      margin: 0 auto;
-      display: block;
-      object-fit: contain;
-    }
-    
-    #universityCarousel .carousel-control-prev,
-    #universityCarousel .carousel-control-next {
-      opacity: 1;
-      width: 10%;
-    }
-    
-    .carousel .carousel-indicators {
-      bottom: -40px;
-    }
-    
-    .carousel .carousel-indicators li {
-      background-color: #bbb;
-      width: 15px;
-      height: 15px;
-      border-radius: 100%;
-    }
-    
-    .carousel .carousel-indicators li.active {
-      background-color: #717171;
-      width: 15px;
-      height: 15px;
-      border-radius: 100%;
-    }
-    
-    .slider-navigation-next,
-    .slider-navigation-previous {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      position: absolute;
-      width: 42px;
-      height: 42px;
-      background: gray center center no-repeat;
-      background-size: 20px 20px;
-      border: 1px solid #fff;
-      border-radius: 25091983px;
-      box-shadow: 0 2px 5px #3232321a;
-      top: 50%;
-      margin-top: -20px;
-      left: 0;
-      cursor: pointer;
-      transition: transform .3s, opacity .3s, -webkit-transform .3s;
-    }
-    
-    .slider-navigation-next svg,
-    .slider-navigation-previous svg {
-      width: 25%;
-      background: gray;
-    }
-    
-    .slider-navigation-next {
-      left: auto;
-      right: 0;
-      background: gray center center no-repeat;
-      background-size: 20px 20px;
-    }
-    
-    .teaser-carousel {
-      margin-bottom: 20px;
-    }
-
-    .carousel-container {
-      width: 100%;
-      max-width: 1200px;
-      margin: 0 auto;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .carousel-slide img {
-      max-height: 900px;
-      max-width: 100%;
-    }
-
-    .hero .hero-body {
-      padding-top: 0rem;
-    }
-
-    .publication-authors a:link,
-    .publication-authors a:visited {
-      color: #222;
-      text-decoration: none;
-    }
-    .publication-authors a:hover {
-      color: #1976d2;
-      text-decoration: underline;
-    }
-  </style>
-
-  <script>
-    // Initialize all carousels on page load
-    document.addEventListener('DOMContentLoaded', function() {
-      // Initialize existing carousels
-      bulmaCarousel.attach();
-      
-      // Initialize Bootstrap carousels
-      $('.carousel').carousel();
-    });
-  </script>
-</head>
-<body>
-
-<nav class="navbar" role="navigation" aria-label="main navigation">
-  <div class="navbar-brand">
-    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
-      <span aria-hidden="true"></span>
-      <span aria-hidden="true"></span>
-      <span aria-hidden="true"></span>
-    </a>
-  </div>
-  <div class="navbar-menu">
-<!--    <div class="navbar-start" style="flex-grow: 1; justify-content: center;">-->
-<!--      <a class="navbar-item" href="https://keunhong.com">-->
-<!--      <span class="icon">-->
-<!--          <i class="fas fa-home"></i>-->
-<!--      </span>-->
-<!--      </a>-->
-
-<!--      <div class="navbar-item has-dropdown is-hoverable">-->
-<!--        <a class="navbar-link">-->
-<!--          More Research-->
-<!--        </a>-->
-<!--        <div class="navbar-dropdown">-->
-<!--          <a class="navbar-item" href="https://hypernerf.github.io">-->
-<!--            HyperNeRF-->
-<!--          </a>-->
-<!--          <a class="navbar-item" href="https://nerfies.github.io">-->
-<!--            Nerfies-->
-<!--          </a>-->
-<!--          <a class="navbar-item" href="https://latentfusion.github.io">-->
-<!--            LatentFusion-->
-<!--          </a>-->
-<!--          <a class="navbar-item" href="https://photoshape.github.io">-->
-<!--            PhotoShape-->
-<!--          </a>-->
-<!--        </div>-->
-<!--      </div>-->
-<!--    </div>-->
-
-  </div>
-</nav>
-
-
-<section class="hero">
-  <div class="hero-body">
-    <div class="container is-max-desktop">
-      <div class="columns is-centered">
-        <div class="column has-text-centered">
-          <h1 class="title is-1 publication-title" style="font-size: 2.5rem;">
-            The Automated but Risky Game: Modeling Agent-to-Agent Negotiations and Transactions in Consumer Markets
-          </h1> 
-          <div style="margin-top: -1rem;"></div>         
-          <div class="is-size-5 publication-authors">
-            <div style="display: flex; justify-content: center; flex-wrap: wrap; font-size: 22px;">
-              <div style="margin: 0 40px;"><a href='https://shenzhezhu.github.io'>Shenzhe Zhu</a><sup>1</sup></div>
-              <div style="margin: 0 40px;"><a href='https://sunjiao123sun.github.io/'>Jiao Sun</a><sup>2</sup></div>
-              <div style="margin: 0 40px;">Yi Nian<sup>3</sup></div>
-              <div style="margin: 0 40px;"><a href='https://tobin.page/'>Tobin South</a><sup>4</sup></div>
-              <div style="margin: 0 40px;"><a href='https://www.media.mit.edu/people/sandy/overview/'>Alex Pentland</a><sup>4,5</sup></div>
-              <div style="margin: 0 40px;"><a href='https://jiaxin-pei.github.io/'>Jiaxin Pei</a><sup>5,†</sup></div>
-            </div>
-            <div style="margin-top: 0.5rem;"></div>
-            <div style="text-align: center; margin-top: 0.5rem;">
-              <div style="display: flex; justify-content: center; align-items: center; gap: 32px; margin-bottom: 0rem;">
-                <span><sup>1</sup><img src="static/images/university/uoft.png" alt="University of Toronto" style="height: 100px; vertical-align: middle;"></span>
-                <span><sup>2</sup><img src="static/images/university/google_deepmind.png" alt="Google DeepMind" style="height: 100px; vertical-align: middle;"></span>
-                <span><sup>3</sup><img src="static/images/university/usc.png" alt="University of Southern California" style="height:60px; vertical-align: middle;"></span>
-              </div>
-              <div style="display: flex; justify-content: center; align-items: center; gap: 32px;">
-                <span><sup>4</sup><img src="static/images/university/mit.png" alt="Massachusetts Institute of Technology" style="height:170px; vertical-align: middle;"></span>
-                <span><sup>5</sup><img src="static/images/university/stanford.png" alt="Stanford University" style="height:110px; vertical-align: middle;"></span>
-              </div>
-            </div>
-            <div style="font-size: 16px; margin-top: -30px; text-align: center; font-style: italic;">(†) Corresponding Author</div>
-          </div>
-
-          <div class="is-size-5 publication-authors">
-            <!--            <span class="author-block"><sup>1</sup>University of Washington,</span>-->
-            <!--            <span class="author-block"><sup>2</sup>Google Research</span>-->
-          </div>
-
-          <div class="column has-text-centered">
-            <div class="publication-links">
-              <!-- PDF Link. -->
-              <span class="link-block">
-                <a href="https://arxiv.org/pdf/2506.00073"
-                   class="external-link button is-normal is-rounded is-dark">
-                  <span class="icon">
-                      <i class="fas fa-file-pdf"></i>
-                  </span>
-                  <span>Paper</span>
-                </a>
-              </span>
-              <span class="link-block">
-                <a href="https://arxiv.org/abs/2506.00073"
-                   class="external-link button is-normal is-rounded is-dark">
-                  <span class="icon">
-                      <i class="ai ai-arxiv"></i>
-                  </span>
-                  <span>arXiv</span>
-                </a>
-              </span>
-              <!-- Video Link. -->
-<!--              <span class="link-block">-->
-<!--                <a href="https://www.youtube.com/watch?v=MrKrnHhk8IA"-->
-<!--                   class="external-link button is-normal is-rounded is-dark">-->
-<!--                  <span class="icon">-->
-<!--                      <i class="fab fa-youtube"></i>-->
-<!--                  </span>-->
-<!--                  <span>Video</span>-->
-<!--                </a>-->
-<!--              </span>-->
-              <!-- Code Link. -->
-              <span class="link-block">
-                <a href="https://github.com/ShenzheZhu/Agent2Agent-Negotiation-Transaction"
-                   class="external-link button is-normal is-rounded is-dark">
-                  <span class="icon">
-                      <i class="fab fa-github"></i>
-                  </span>
-                  <span>Code</span>
-                  </a>
-              </span>
-            </div>
-          </div>
-        </div>
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Noto+Sans:400,500,700|Castoro" rel="stylesheet">
+    <link rel="stylesheet" href="./static/css/academicons.min.css">
+    <link rel="stylesheet" href="./static/css/index.css">
+    <link rel="icon" href="./static/images/asset_agent/payment-security.png">
+    <script defer src="./static/js/fontawesome.all.min.js"></script>
+  </head>
+  <body>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a class="brand" href="#top" aria-label="A2A-NT home">
+        <img src="./static/images/asset_agent/payment-security.png" alt="">
+        <span>A2A-NT</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="nav-links">
+        <a href="#framework">Framework</a>
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#risks">Risks</a>
+        <a href="#resources">Resources</a>
+        <a href="#citation">Citation</a>
       </div>
-    </div>
-  </div>
-</section>
+    </nav>
 
-<!--<section class="hero teaser">-->
-<!--  <div class="container is-max-desktop">-->
-<!--    <div class="hero-body">-->
-<!--      <video id="teaser" autoplay muted loop playsinline height="100%">-->
-<!--        <source src="./static/videos/teaser.mp4"-->
-<!--                type="video/mp4">-->
-<!--      </video>-->
-<!--&lt;!&ndash;      <img src="static/images/pic1.jpg" alt="" height="100%">&ndash;&gt;-->
-<!--      <h2 class="subtitle has-text-centered">-->
-<!--        <span class="dnerf">Nerfies</span> turns selfie videos from your phone into-->
-<!--        free-viewpoint-->
-<!--        portraits.-->
-<!--      </h2>-->
-<!--    </div>-->
-<!--  </div>-->
-<!--</section>-->
-<div class="container is-max-desktop">
-  <div class="columns is-centered has-text-centered">
-    <div class="column is-four-fifths">
-      <figure class="image">
-        <img src="static/images/asset_agent/teaser.png" alt="Teaser Image">
-      </figure>
-    </div>
-  </div>
-</div>
+    <header class="hero" id="top">
+      <div class="hero-inner">
+        <h1 class="hero-title">
+          <span class="title-accent">The Automated but Risky Game</span>
+          <span>Modeling and Benchmarking agent-to-agent negotiations and transactions in consumer markets.</span>
+        </h1>
 
+        <div class="hero-actions" aria-label="Project links">
+          <a class="button primary" href="https://arxiv.org/pdf/2506.00073">
+            <i class="fas fa-file-pdf" aria-hidden="true"></i>
+            <span>Paper</span>
+          </a>
+          <a class="button" href="https://arxiv.org/abs/2506.00073">
+            <i class="ai ai-arxiv" aria-hidden="true"></i>
+            <span>arXiv</span>
+          </a>
+          <a class="button" href="https://github.com/ShenzheZhu/A2A-NT">
+            <i class="fab fa-github" aria-hidden="true"></i>
+            <span>Code</span>
+          </a>
+          <a class="button" href="https://huggingface.co/datasets/Chouoftears/Agent2Agent-Negotiation-in-Consumer-Setting-Dataset">
+            <i class="fas fa-database" aria-hidden="true"></i>
+            <span>Dataset</span>
+          </a>
+        </div>
 
-<section class="section">
-  <div class="container is-max-desktop">
-    <!-- Abstract. -->
-    <div class="columns is-centered has-text-centered">
-      <div class="column is-four-fifths">
-        <h2 class="title is-2">Abstract</h2>
-        <div class="content has-text-justified">
+        <div class="author-block">
           <p>
-            &nbsp;&nbsp;&nbsp;&nbsp; AI agents are increasingly used in consumer-facing applications to assist with tasks such as product search, negotiation, and transaction execution. In this paper, we investigate a future setting where both consumers and merchants authorize AI agents to automate the negotiations and transactions in consumer settings. We aim to address two questions: (1) Do different LLM agents exhibit varying performances when making deals on behalf of their users? (2) What are the potential risks when we use AI agents to fully automate negotiations and deal-making in consumer settings? We designed an experimental framework to evaluate AI agents' capabilities and performance in real-world negotiation and transaction scenarios, and experimented with a range of open-source and closed-source LLMs. 
-            Our analysis reveals that deal-making with LLM agents in consumer settings is an inherently imbalanced game: different AI agents have large disparities in obtaining the best deals for their users.  
-            Furthermore, we found that LLMs' behavioral anomaly might lead to financial loss when deployed in real-world decision-making scenarios, such as overspending or making unreasonable deals.  Our findings highlight that while automation can enhance transactional efficiency, it also poses nontrivial risks to consumer markets. Users should be careful when delegating business decisions to LLM agents.
+            <a href="https://shenzhezhu.github.io">Shenzhe Zhu</a><sup>1</sup>,
+            <a href="https://sunjiao123sun.github.io/">Jiao Sun</a><sup>2</sup>,
+            Yi Nian<sup>3</sup>,
+            <a href="https://tobin.page/">Tobin South</a><sup>4</sup>,
+            <a href="https://www.media.mit.edu/people/sandy/overview/">Alex Pentland</a><sup>4,5</sup>,
+            <a href="https://jiaxin-pei.github.io/">Jiaxin Pei</a><sup>5,†</sup>
+          </p>
+          <p class="affiliations">
+            <sup>1</sup>University of Toronto · <sup>2</sup>Google DeepMind · <sup>3</sup>University of Southern California ·
+            <sup>4</sup>MIT · <sup>5</sup>Stanford University · <sup>†</sup>Corresponding Author
+          </p>
+          <p class="contact-line">
+            Contact: <a href="mailto:cho.zhu@mail.utoronto.ca">cho.zhu@mail.utoronto.ca</a> ·
+            <a href="mailto:pedropei@stanford.edu">pedropei@stanford.edu</a>
           </p>
         </div>
       </div>
-    </div>
-    <!--/ Abstract. -->
 
-    <!-- Paper video. -->
-<!--    <div class="columns is-centered has-text-centered">-->
-<!--      <div class="column is-four-fifths">-->
-<!--        <h2 class="title is-3">Video</h2>-->
-<!--        <div class="publication-video">-->
-<!--          <iframe src="https://www.youtube.com/embed/MrKrnHhk8IA?rel=0&amp;showinfo=0"-->
-<!--                  frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>-->
-<!--        </div>-->
-<!--      </div>-->
-<!--    </div>-->
-    <!--/ Paper video. -->
-  </div>
-</section>
-
-
-<section class="section" id="performance">
-  <div class="container is-max-desktop">
-    <h2 class="title is-2 has-text-centered" style="font-size: 2.2rem;">Agent-to-Agent Negotiation and Transaction Framework</h2>
-    <p>
-      Our framework simulates real-world negotiations between two AI agents - one buyer and one seller - over consumer products. While both know the retail price, only the seller knows the wholesale cost. The buyer operates within a budget limit, and negotiations follow strict rules: sellers can't go below wholesale cost, and buyers can't exceed their budget. Through multiple rounds of offers, sellers aim to maintain retail prices while buyers seek the best discounts.
-    </p>
-    <div style="margin-top: 2rem;">
-      <figure class="image" style="max-width: 800px; margin: 0 auto;">
-        <img src="static/images/asset_agent/workflow.png" alt="Performance Graph" height="100%">
+      <figure class="hero-visual">
+        <img src="./static/images/asset_agent/teaser.png" alt="A2A-NT overview showing buyer and seller agents negotiating consumer transactions">
+        <figcaption>AI agents negotiate prices, accept or reject offers, and expose measurable transaction risks.</figcaption>
       </figure>
-    </div>
-  </div>
-</section>
+    </header>
 
-<!-- Performance Section -->
-<section class="section" id="performance">
-  <div class="container is-max-desktop">
-    <h2 class="title is-3 has-text-centered" style="margin-bottom: 1.8rem;">Negotiation Performance</h2>
-    <figure class="image" style="max-width: 800px; margin: 0 auto;">
-      <img src="static/images/asset_agent/main_performance.png" alt="Performance Graph" height="100%">
-    </figure>
-  </div>
-</section>
+    <main>
+      <section class="section abstract-section" id="overview">
+        <div class="section-heading centered">
+          <p class="eyebrow">Overview</p>
+          <h2>What happens when both sides of a consumer transaction are automated?</h2>
+        </div>
+        <div class="abstract-copy">
+          <p>A2A-NT studies consumer-market deals where both buyers and sellers delegate negotiation to AI agents. We evaluate how different LLM agents perform as deal-makers, and how automation can create imbalanced games, overspending, invalid deals, or stalled negotiations.</p>
+        </div>
+        <div class="stat-row" aria-label="Benchmark summary">
+          <div class="stat-item">
+            <strong>Buyer + seller</strong>
+            <span>Two-agent negotiation setting</span>
+          </div>
+          <div class="stat-item">
+            <strong>Consumer products</strong>
+            <span>Retail, wholesale, and budget constraints</span>
+          </div>
+          <div class="stat-item">
+            <strong>Risk labels</strong>
+            <span>Overpayment, constraint violation, deadlock, early settlement</span>
+          </div>
+        </div>
+      </section>
 
-<section class="section">
-  <div class="container is-max-desktop">
-    <h2 class="title is-2 has-text-centered" style="margin-bottom: 2rem;">Two Types of Risks</h2>
-    <h2 class="title is-3 has-text-centered"style="font-size: 1.8rem;">RISK 1: Imbalanced Game</h2>
-    <figure class="image" style="max-width: 800px; margin: 0 auto;">
-      <img src="static/images/asset_agent/imbalance_game.png" alt="Risk: Imbalanced Game">
-    </figure>
-    <p style="margin-top: 2rem;">
-      <strong>From Model Capability Gap to Economic Loss.</strong> Our analysis reveals that when agents with different negotiation capacities compete against each other, users who employ weaker agents experience significant economic losses.
-    </p>
-  </div>
-</section>
+      <section class="section light" id="framework">
+        <div class="section-heading split">
+          <div>
+            <p class="eyebrow">Framework</p>
+            <h2>Negotiation traces become measurable transaction outcomes.</h2>
+          </div>
+          <p>Both agents know the retail price, while only the seller knows wholesale cost. The buyer operates under a budget limit, the seller should not go below wholesale, and multi-turn offers expose capability gaps and anomaly patterns.</p>
+        </div>
+        <figure class="wide-figure">
+          <img src="./static/images/asset_agent/workflow.png" alt="Agent-to-agent negotiation and transaction framework">
+        </figure>
+      </section>
 
-<section class="section">
-  <div class="container is-max-desktop">
-    <h2 class="title is-3 has-text-centered"style="font-size: 1.8rem;">Scenario of RISK 1:</h2>
-    <figure class="image" style="max-width: 800px; margin: 0 auto;">
-      <img src="static/images/asset_agent/model_gap.png" alt="risk 1 example">
-    </figure>
-    <p style="margin-top: 2rem;"> <strong>Economic impact of model imbalance in agent negotiations.</strong> We analyze seven model pairings with successful negotiation overlaps. Using DeepSeek-R1 vs. DeepSeek-R1 as baseline. From this table, we can see that whether a strong buyer faces a weak seller
-      or vice versa, the party with the weaker agent suffers a strategic disadvantage resulting in economic loss.
-    </p>
-  </div>
-</section>
+      <section class="section" id="leaderboard">
+        <div class="section-heading split">
+          <div>
+            <p class="eyebrow">Leaderboard</p>
+            <h2>Ranked negotiation performance</h2>
+          </div>
+          <p>We rank the released A2A-NT model suite by sorting the same leaderboard table with one selected metric: Relative Profit, Seller PRR, or Buyer PRR.</p>
+        </div>
 
+        <div class="leaderboard-controls">
+          <div class="sort-control">
+            <label for="leaderboard-sort-select">Sort by</label>
+            <select id="leaderboard-sort-select" aria-label="Sort leaderboard by metric">
+              <option value="relativeProfit">Relative Profit</option>
+              <option value="sellerPrr">Seller PRR</option>
+              <option value="buyerPrr">Buyer PRR</option>
+            </select>
+          </div>
+          <div class="metric-note">
+            <div>
+              <h3 id="leaderboard-metric-title">Relative Profit</h3>
+              <p class="status-pill" id="leaderboard-metric-rule">Higher is better</p>
+            </div>
+            <p id="leaderboard-metric-copy">Seller-side total profit, normalized against GPT-3.5 as the 1.0x baseline.</p>
+          </div>
+        </div>
 
-<section class="section">
-  <div class="container is-max-desktop">
-    <h2 class="title is-3 has-text-centered" style="font-size: 1.8rem;">RISK 2: Model Anomaly</h2>
-    <div class="columns is-multiline">
-      <!-- First Row -->
-      <div class="column is-6">
-        <div class="content has-text-centered">
-          <h3 class="title is-4">Constraint Violation</h3>
-          <figure class="image" style="max-width: 200px; margin: 0 auto;">
-            <img src="static/images/asset_agent/out-of-wholesale.png" alt="Out of Wholesale Anomaly">
+        <div class="table-shell" aria-label="A2A-NT model leaderboard">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Model</th>
+                <th data-sort-column="relativeProfit">Relative Profit</th>
+                <th data-sort-column="sellerPrr">Seller PRR</th>
+                <th data-sort-column="buyerPrr">Buyer PRR</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="risks">
+        <div class="section-heading centered">
+          <p class="eyebrow">Key risks</p>
+          <h2>Automation changes who wins, who loses, and how failures appear.</h2>
+        </div>
+
+        <div class="risk-block">
+          <div class="risk-copy">
+            <span class="risk-label">Risk 1</span>
+            <h3>Imbalanced game</h3>
+            <p>When agents with different negotiation capacities compete, users represented by weaker agents can face strategic disadvantage and economic loss.</p>
+          </div>
+          <figure class="risk-wide-figure">
+            <img src="./static/images/asset_agent/imbalance_game.png" alt="Imbalanced game risk illustration">
           </figure>
         </div>
-      </div>
-      <!-- Second Row -->
-      <div class="column is-6">
-        <div class="content has-text-centered">
-          <h3 class="title is-4">Excessive Payment</h3>
-          <figure class="image" style="max-width: 200px; margin: 0 auto;">
-            <img src="static/images/asset_agent/overpayment.png" alt="Overpayment Anomaly">
-          </figure>
+
+        <div class="risk-block reverse">
+          <div class="risk-copy">
+            <span class="risk-label">Risk 2</span>
+            <h3>Anomaly Behavior</h3>
+            <p>Even when agents reach a deal, anomaly behavior can violate constraints, cause overpayment, stall negotiations, or lead buyers to settle too early.</p>
+          </div>
+          <div class="risk-cards risk-behavior-cards" aria-label="Risk 2 anomaly behavior types">
+            <article>
+              <h3>Out-of-budget</h3>
+              <p>Buyer agents accept prices above the user budget.</p>
+            </article>
+            <article>
+              <h3>Out-of-wholesale</h3>
+              <p>Seller agents accept prices below wholesale cost.</p>
+            </article>
+            <article>
+              <h3>Overpayment</h3>
+              <p>Buyers accept or offer above the expected market value.</p>
+            </article>
+            <article>
+              <h3>Negotiation deadlock</h3>
+              <p>Dialogue loops continue without productive progress.</p>
+            </article>
+            <article>
+              <h3>Early settlement</h3>
+              <p>High-budget buyers compromise too early instead of negotiating.</p>
+            </article>
+          </div>
         </div>
-      </div>
-      <div class="column is-6">
-        <div class="content has-text-centered">
-          <h3 class="title is-4">Negotiation Deadlock</h3>
-          <figure class="image" style="max-width: 200px; margin: 0 auto;">
-            <img src="static/images/asset_agent/deadlock.png" alt="Negotiation Deadlock Anomaly">
-          </figure>
+      </section>
+
+      <section class="section" id="resources">
+        <div class="section-heading split">
+          <div>
+            <p class="eyebrow">Resources</p>
+            <h2>Reproduce and extend the benchmark</h2>
+          </div>
+          <p>The repository includes experiment runners, product datasets, anomaly-labeling scripts, and analysis notebooks for reproducing the benchmark.</p>
         </div>
-      </div>
-      <div class="column is-6">
-        <div class="content has-text-centered">
-          <h3 class="title is-4">Early Settlement</h3>
-          <figure class="image" style="max-width: 220px; margin: 0 auto;">
-            <img src="static/images/asset_agent/early_settlement.png" alt="Early Settlement Anomaly">
-          </figure>
+        <div class="resource-grid">
+          <a href="https://github.com/ShenzheZhu/A2A-NT">
+            <i class="fab fa-github" aria-hidden="true"></i>
+            <strong>Code</strong>
+            <span>Experiment runner and analysis scripts</span>
+          </a>
+          <a href="https://huggingface.co/datasets/Chouoftears/Agent2Agent-Negotiation-in-Consumer-Setting-Dataset">
+            <i class="fas fa-database" aria-hidden="true"></i>
+            <strong>Dataset</strong>
+            <span>Consumer product records and released traces</span>
+          </a>
+          <a href="https://arxiv.org/abs/2506.00073">
+            <i class="ai ai-arxiv" aria-hidden="true"></i>
+            <strong>Paper</strong>
+            <span>Full methods and findings</span>
+          </a>
         </div>
-      </div>
-    </div>
-    <p style="margin-top: 2rem;">
-      <strong>From Model Anomaly to Economic Loss.</strong> We identified four types of negotiation anomalies in our experiments: (1) Constraint violations where agents ignore budget limits or wholesale costs; (2) Excessive payments where buyers offer above retail prices; (3) Negotiation deadlocks where agents get stuck in endless loops; and (4) Early settlements where high-budget buyers compromise too quickly instead of negotiating better deals.
-    </p>
-  </div>
-</section>
+      </section>
 
-<head>
-  <meta charset="UTF-8">
-  <title>University Partners Carousel</title>
-  <style>
-    .carousel-container {
-      width: 100%;
-      max-width: 700px;
-      margin: 0 auto;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .carousel-slides {
-      display: flex;
-      transition: transform 0.5s ease-in-out;
-      width: 100%;
-    }
-
-    .carousel-slide {
-      min-width: 100%;
-      text-align: center;
-    }
-
-    .carousel-slide img {
-      max-height: 400px;
-      max-width: 100%;
-    }
-
-    .carousel-button {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      background-color: rgba(0,0,0,0.3);
-      border: none;
-      color: white;
-      font-size: 24px;
-      padding: 10px;
-      cursor: pointer;
-    }
-
-    .prev {
-      left: 10px;
-    }
-
-    .next {
-      right: 10px;
-    }
-
-    .carousel-indicators {
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    .dot {
-      height: 10px;
-      width: 10px;
-      margin: 0 5px;
-      background-color: #bbb;
-      border-radius: 50%;
-      display: inline-block;
-      cursor: pointer;
-    }
-
-    .dot.active {
-      background-color: #717171;
-    }
-  </style>
-</head>
-<body>
-
-<h2 class="title is-2 has-text-centered" style="font-size: 1.8rem;">Statistics of RISK 2</h2>
-
-<div class="carousel-container">
-  <div class="carousel-slides" id="carouselSlides">
-    <div class="carousel-slide"><img src="./static/images/anomaly/constraint_violation.png" alt="Constraint Violation"></div>
-    <div class="carousel-slide"><img src="./static/images/anomaly/overpayment.png" alt="Overpayment"></div>
-    <div class="carousel-slide"><img src="./static/images/anomaly/deadlock.png" alt="Deadlock"></div>
-    <div class="carousel-slide"><img src="./static/images/anomaly/early_settelment.png" alt="Early Settlement"></div>
-  </div>
-
-  <button class="carousel-button prev" onclick="prevSlide()">❮</button>
-  <button class="carousel-button next" onclick="nextSlide()">❯</button>
-</div>
-
-<div class="carousel-indicators" id="carouselDots"></div>
-
-<script>
-  const slides = document.querySelectorAll('.carousel-slide');
-  const dotsContainer = document.getElementById('carouselDots');
-  const totalSlides = slides.length;
-  let currentIndex = 0;
-
-  const updateCarousel = () => {
-    const offset = -currentIndex * 100;
-    document.getElementById('carouselSlides').style.transform = `translateX(${offset}%)`;
-    updateDots();
-  };
-
-  const nextSlide = () => {
-    currentIndex = (currentIndex + 1) % totalSlides;
-    updateCarousel();
-  };
-
-  const prevSlide = () => {
-    currentIndex = (currentIndex - 1 + totalSlides) % totalSlides;
-    updateCarousel();
-  };
-
-  const updateDots = () => {
-    const dots = document.querySelectorAll('.dot');
-    dots.forEach((dot, index) => {
-      dot.classList.toggle('active', index === currentIndex);
-    });
-  };
-
-  // Auto play
-  setInterval(nextSlide, 10000);
-
-  // Create dots
-  for (let i = 0; i < totalSlides; i++) {
-    const dot = document.createElement('span');
-    dot.className = 'dot' + (i === 0 ? ' active' : '');
-    dot.addEventListener('click', () => {
-      currentIndex = i;
-      updateCarousel();
-    });
-    dotsContainer.appendChild(dot);
-  }
-</script>
-
-
-
-<section class="section" id="BibTeX">
-  <div class="container is-max-desktop content">
-    <h2 class="title">BibTeX</h2>
-    <pre><code>@article{your_paper_citation,
-      title={The Automated but Risky Game: Modeling Agent-to-Agent Negotiations and Transactions in Consumer Markets},
+      <section class="section citation-section" id="citation">
+        <div class="section-heading centered">
+          <p class="eyebrow">Citation</p>
+          <h2>BibTeX</h2>
+        </div>
+        <pre><code>@misc{zhu2025automatedriskygamemodeling,
+      title={The Automated but Risky Game: Modeling and Benchmarking Agent-to-Agent Negotiations and Transactions in Consumer Markets},
       author={Shenzhe Zhu and Jiao Sun and Yi Nian and Tobin South and Alex Pentland and Jiaxin Pei},
-      journal={},
-      year={2025}
-    }
-</code></pre>
-  </div>
-</section>
+      year={2025},
+      eprint={2506.00073},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2506.00073},
+}</code></pre>
+      </section>
+    </main>
 
-<!--
-<footer class="footer">
-  <div class="container">
-    <div class="content has-text-centered">
-      <a class="icon-link"
-         href="">
-        <i class="fas fa-file-pdf"></i>
-      </a>
-      <a class="icon-link" href="https://github.com/ShenzheZhu/Agent2Agent-Negotiation-Transaction" class="external-link" disabled>
-        <i class="fab fa-github"></i>
-      </a>
-    </div>
-    <div class="columns is-centered">
-      <div class="column is-8">
-        <div class="content">
-          <p>
-            This website is licensed under a <a rel="license"
-                                                href="">Creative
-            Commons Attribution-ShareAlike 4.0 International License</a>.
-          </p>
-          <p>
-            This means you are free to borrow the <a
-              href="https://github.com/nerfies/nerfies.github.io">source code</a> of this website,
-            we just ask that you link back to this page in the footer.
-            Please remember to remove the analytics code included in the header of the website which
-            you do not want on your website.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-</footer>
--->
+    <footer class="site-footer">
+      <span>A2A-NT</span>
+      <span>Agent-to-agent negotiation benchmark for consumer markets.</span>
+    </footer>
 
-</body>
+    <script src="./static/js/index.js"></script>
+  </body>
 </html>
