@@ -66,7 +66,7 @@ Run a configured sweep:
 bash scripts/run_sweep.sh
 ```
 
-`scripts/run_sweep.py` runs non-destructive post-processing once after a live sweep: price-scale repair, anomaly labels, and `data_error` tagging. Use `--skip-postprocess` to disable it. Direct `main.py` runs can opt in with `--postprocess`.
+`scripts/run_sweep.py` runs non-destructive post-processing once after a live sweep: price-scale warnings, anomaly labels, and `data_error` tagging. Use `--skip-postprocess` to disable it. Direct `main.py` runs can opt in with `--postprocess`. Price-scale repair is opt-in with `--repair-price-scale`; by default suspicious scales are flagged but original offers are preserved.
 
 Useful commands:
 
