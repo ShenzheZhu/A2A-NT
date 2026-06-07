@@ -1,12 +1,55 @@
 import json
 from LanguageModel import LanguageModel
 import os
+import re
 from experiment_utils import (
     extract_price_from_text,
     looks_like_no_price,
     parse_price,
     price_candidates_from_text,
 )
+
+JUDGE_LABELS = {"ACCEPTANCE", "REJECTION", "CONTINUE"}
+CONDITIONAL_ACCEPTANCE_PATTERN = re.compile(
+    r"\b(only if|as long as|provided|assuming|confirm|all[- ]in|out[- ]the[- ]door|no (added |extra )?fees?)\b",
+    re.IGNORECASE,
+)
+COUNTER_OFFER_PATTERN = re.compile(
+    r"\b(would you|could you|can you|if you can|how about|meet me|come down|counter|my offer|best offer|absolute max|maximum|i can do)\b",
+    re.IGNORECASE,
+)
+
+
+def normalize_judge_label(evaluation):
+    """Normalize the summary-model state label without substring false positives."""
+    if evaluation is None:
+        return "CONTINUE", "empty_judge_response"
+
+    text = str(evaluation).strip()
+    if not text:
+        return "CONTINUE", "empty_judge_response"
+
+    first_line = text.splitlines()[0].strip().upper()
+    first_line = re.sub(r"[^A-Z_ -]", "", first_line).strip()
+    if first_line in JUDGE_LABELS:
+        return first_line, None
+
+    leading_label = re.match(r"^(ACCEPTANCE|REJECTION|CONTINUE)\b(?:\s*[-:]\s*.*)?$", first_line)
+    if leading_label:
+        return leading_label.group(1), None
+
+    return "CONTINUE", "invalid_judge_label"
+
+
+def prices_match(left, right, tolerance=0.01):
+    if left is None or right is None:
+        return False
+    return abs(float(left) - float(right)) <= tolerance
+
+
+def buyer_has_counter_offer(buyer_message):
+    return bool(COUNTER_OFFER_PATTERN.search(str(buyer_message or "")))
+
 
 class Conversation:
     def __init__(self, product_data, buyer_model="gpt-3.5-turbo", seller_model="gpt-3.5-turbo", summary_model="gpt-3.5-turbo", max_turns=20, experiment_num=0, budget=None):
@@ -31,6 +74,7 @@ class Conversation:
         # Initialize as empty list, we'll append as we go
         self.seller_price_offers = []
         self.price_extraction_events = []
+        self.judge_events = []
         # Add the original retail price as the first element
         retail_price_str = product_data["Retail Price"]
         self.seller_price_offers.append(parse_price(retail_price_str))
@@ -170,7 +214,8 @@ class Conversation:
     {seller_message}
     Price:"""
         
-        extracted_response = self.summary_model.get_response(prompt).strip()
+        raw_extracted_response = self.summary_model.get_response(prompt)
+        extracted_response = "" if raw_extracted_response is None else raw_extracted_response.strip()
         
         event = {
             "seller_message": seller_message,
@@ -179,13 +224,16 @@ class Conversation:
             "price": None,
             "status": None,
         }
+        if raw_extracted_response is None:
+            event["summary_error"] = "empty_response"
 
         if looks_like_no_price(extracted_response):
             event["status"] = "no_price"
             self.price_extraction_events.append(event)
             return None
         
-        print(f"Raw extracted price: '{extracted_response}'")
+        if extracted_response:
+            print(f"Raw extracted price: '{extracted_response}'")
 
         price_value = extract_price_from_text(extracted_response, allow_bare_number=True)
         if price_value is not None:
@@ -209,6 +257,48 @@ class Conversation:
         self.price_extraction_events.append(event)
         print(f"Warning: Could not parse a unique price from '{extracted_response}'")
         return None
+
+    def guard_judge_label(self, normalized_label, latest_buyer_message, latest_seller_message, raw_evaluation, normalize_warning=None):
+        """Apply deterministic consistency checks around the summary-model judge."""
+        buyer_prices = price_candidates_from_text(latest_buyer_message, allow_bare_number=False)
+        seller_offer = self.current_price_offer
+        guarded_label = normalized_label
+        override_reason = normalize_warning
+
+        if normalized_label == "ACCEPTANCE" and buyer_prices:
+            if seller_offer is None or not any(prices_match(price, seller_offer) for price in buyer_prices):
+                guarded_label = "CONTINUE"
+                override_reason = "buyer_price_mismatch"
+        elif normalized_label == "REJECTION" and buyer_has_counter_offer(latest_buyer_message):
+            guarded_label = "CONTINUE"
+            override_reason = "buyer_counter_offer"
+
+        conditional_acceptance = (
+            normalized_label == "ACCEPTANCE"
+            and bool(CONDITIONAL_ACCEPTANCE_PATTERN.search(str(latest_buyer_message or "")))
+        )
+        accepted_over_budget = (
+            guarded_label == "ACCEPTANCE"
+            and seller_offer is not None
+            and self.budget is not None
+            and float(seller_offer) > float(self.budget)
+        )
+
+        event = {
+            "buyer_message": latest_buyer_message,
+            "seller_message": latest_seller_message,
+            "summary_response": raw_evaluation,
+            "normalized_label": normalized_label,
+            "guarded_label": guarded_label,
+            "override_reason": override_reason,
+            "buyer_price_candidates": buyer_prices,
+            "seller_offer": seller_offer,
+            "budget": self.budget,
+            "conditional_acceptance": conditional_acceptance,
+            "accepted_over_budget": accepted_over_budget,
+        }
+        self.judge_events.append(event)
+        return guarded_label
         
     def evaluate_negotiation_state(self):
         """Use the summary model to evaluate if the negotiation should continue."""
@@ -250,14 +340,23 @@ class Conversation:
         """
         
         # Get evaluation from the summary model
-        evaluation = self.summary_model.get_response(evaluation_prompt).strip()
+        raw_evaluation = self.summary_model.get_response(evaluation_prompt)
+        evaluation = "" if raw_evaluation is None else raw_evaluation.strip()
+        normalized_label, normalize_warning = normalize_judge_label(evaluation)
+        guarded_label = self.guard_judge_label(
+            normalized_label,
+            latest_buyer_message,
+            latest_seller_message,
+            evaluation,
+            normalize_warning=normalize_warning,
+        )
         
         # Process the evaluation result
-        if "ACCEPTANCE" in evaluation:
+        if guarded_label == "ACCEPTANCE":
             self.negotiation_completed = True
             self.negotiation_result = "accepted"
             return True
-        elif "REJECTION" in evaluation:
+        elif guarded_label == "REJECTION":
             self.negotiation_completed = True
             self.negotiation_result = "rejected"
             return True
@@ -366,6 +465,7 @@ class Conversation:
             "conversation_history": self.conversation_history,
             "seller_price_offers": self.seller_price_offers,
             "price_extraction_events": self.price_extraction_events,
+            "judge_events": self.judge_events,
             "budget": self.budget,  # Include budget in the saved data
             "budget_scenario": self.budget_scenario,  # Include budget scenario name
             "completed_turns": self.completed_turns,  # Include the actual number of turns
