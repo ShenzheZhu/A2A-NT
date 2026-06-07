@@ -214,7 +214,7 @@ def fix_price_scale(price_list):
                 fixed_list[i] = current / scale_factor
     return fixed_list, changed
 
-def fix_price_scale_in_files(base_dir: str = "results", log_file: str = "logs/price_scale_fixes_log.txt"):
+def fix_price_scale_in_files(base_dir: str = "results", log_file: str = "logs/price_scale_fixes_log.txt", repair: bool = False):
 
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
@@ -222,7 +222,7 @@ def fix_price_scale_in_files(base_dir: str = "results", log_file: str = "logs/pr
     modified_files = 0
 
     with open(log_file, 'w', encoding='utf-8') as log:
-        log.write("Fixing price scale inconsistencies in JSON files\n")
+        log.write("Checking price scale inconsistencies in JSON files\n")
         log.write("=" * 80 + "\n")
         for file_path in iter_result_files(base_dir):
             total_files += 1
@@ -234,11 +234,17 @@ def fix_price_scale_in_files(base_dir: str = "results", log_file: str = "logs/pr
                     fixed_offers, was_modified = fix_price_scale(original_offers)
                     if was_modified:
                         modified_files += 1
-                        data["seller_price_offers"] = fixed_offers
+                        data["price_scale_warning"] = True
+                        data["price_scale_original_offers"] = original_offers
+                        data["price_scale_suggested_offers"] = fixed_offers
+                        data["price_scale_repaired"] = bool(repair)
+                        if repair:
+                            data["seller_price_offers"] = fixed_offers
                         write_json_file(file_path, data)
-                        log.write(f"Modified: {file_path}\n")
+                        log.write(f"Flagged: {file_path}\n")
                         log.write(f"Original: {original_offers}\n")
-                        log.write(f"Fixed: {fixed_offers}\n")
+                        log.write(f"Suggested: {fixed_offers}\n")
+                        log.write(f"Repaired: {repair}\n")
                         log.write("-" * 80 + "\n")
             except Exception as e:
                 log.write(f"Error processing {file_path}: {str(e)}\n")
@@ -246,7 +252,8 @@ def fix_price_scale_in_files(base_dir: str = "results", log_file: str = "logs/pr
         log.write(f"Total files processed: {total_files}\n")
         log.write(f"Files modified: {modified_files}\n")
 
-    print(f"Price scale fix completed. {total_files} files processed, {modified_files} files modified.")
+    action = "repair" if repair else "check"
+    print(f"Price scale {action} completed. {total_files} files processed, {modified_files} files flagged.")
     print(f"See {log_file} for details of changes made.")
 
 def get_model_combinations():
@@ -370,11 +377,10 @@ def move_higher_than_retail_files(base_dir: str = "results", target_dir: str = "
     print(f"Data error files processing completed. {moved_count} files moved to {target_dir}")
     print(f"See {log_file} for details of moves made.")
 
-def run_postprocess(base_dir: str = "results", move_error_files: bool = False):
-    # First fix price scale issues
-    print("Starting price scale fixes...")
-    fix_price_scale_in_files(base_dir=base_dir)
-    print("Price scale fixes completed.")
+def run_postprocess(base_dir: str = "results", move_error_files: bool = False, repair_price_scale: bool = False):
+    print("Starting price scale checks...")
+    fix_price_scale_in_files(base_dir=base_dir, repair=repair_price_scale)
+    print("Price scale checks completed.")
 
     print("\nMarking anomalous data...")
     mark_anomalous_data_with_error(base_dir=base_dir)
@@ -399,8 +405,13 @@ def main():
     parser = argparse.ArgumentParser(description="Post-process A2A-NT result JSON files.")
     parser.add_argument("--results-dir", default="results")
     parser.add_argument("--move-error-files", action="store_true", help="Move max-turn/data-error files into error_data/")
+    parser.add_argument("--repair-price-scale", action="store_true", help="Apply suggested price-scale repairs instead of only flagging them")
     args = parser.parse_args()
-    run_postprocess(base_dir=args.results_dir, move_error_files=args.move_error_files)
+    run_postprocess(
+        base_dir=args.results_dir,
+        move_error_files=args.move_error_files,
+        repair_price_scale=args.repair_price_scale,
+    )
 
 if __name__ == "__main__":
     main()

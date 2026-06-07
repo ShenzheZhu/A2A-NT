@@ -233,6 +233,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Print planned runs without calling model APIs")
     parser.add_argument("--postprocess", action="store_true", help="Run non-destructive result postprocessing after this run")
     parser.add_argument("--postprocess-move-errors", action="store_true", help="When postprocessing, move error files into error_data/")
+    parser.add_argument("--repair-price-scale", action="store_true", help="When postprocessing, apply price-scale repair suggestions")
     
     args = parser.parse_args()
     product_ids = parse_int_csv(args.product_ids)
@@ -258,7 +259,11 @@ def main():
     if args.postprocess and not args.dry_run:
         from MarkAnomaly import run_postprocess
 
-        run_postprocess(base_dir=args.output_dir, move_error_files=args.postprocess_move_errors)
+        run_postprocess(
+            base_dir=args.output_dir,
+            move_error_files=args.postprocess_move_errors,
+            repair_price_scale=args.repair_price_scale,
+        )
     
     print("\nExperiments for all products completed successfully!")
 

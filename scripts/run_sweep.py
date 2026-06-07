@@ -94,6 +94,7 @@ def main():
     parser.add_argument("--budgets", default=None, help="Comma-separated budget scenario override")
     parser.add_argument("--skip-postprocess", action="store_true", help="Do not run result postprocessing after the sweep")
     parser.add_argument("--postprocess-move-errors", action="store_true", help="Move error files during postprocessing")
+    parser.add_argument("--repair-price-scale", action="store_true", help="Apply price-scale repair suggestions during postprocessing")
     args = parser.parse_args()
 
     if args.budgets:
@@ -126,6 +127,7 @@ def main():
         run_postprocess(
             base_dir=args.output_dir or plan["output_dir"],
             move_error_files=args.postprocess_move_errors,
+            repair_price_scale=args.repair_price_scale,
         )
 
 
