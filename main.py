@@ -1,10 +1,12 @@
-import os
 import argparse
 from Conversation import Conversation
 from experiment_utils import (
     SUPPORTED_BUDGET_SCENARIOS,
     calculate_budget_scenarios,
+    count_valid_results,
+    iter_result_files,
     load_products,
+    next_experiment_number,
     parse_csv,
     parse_int_csv,
     result_base_dir,
@@ -25,6 +27,8 @@ def _run_product_experiment(
     append=False,
     budget_scenarios=None,
     dry_run=False,
+    include_error_files=False,
+    judge_confirmation_model=None,
 ):
     """Run experiments for the specified product."""
     print(f"\nStarting experiments for product {product_index}...")
@@ -59,28 +63,30 @@ def _run_product_experiment(
             )
             continue
         
-        # Count existing experiment files
-        existing_files = [f for f in os.listdir(full_output_dir) if f.startswith(f'product_{product_id}_exp_') and f.endswith('.json')]
-        existing_count = len(existing_files)
+        existing_files = iter_result_files(full_output_dir, product_id=product_id)
+        existing_total = len(existing_files)
+        existing_count = count_valid_results(
+            full_output_dir,
+            product_id=product_id,
+            include_error_files=include_error_files,
+        )
         
         # Check if we already have enough experiments
-        if existing_count >= num_experiments and not append:
-            print(f"\nSkipping product {product_id} with budget {budget_name} - already has {existing_count} conversations (target: {num_experiments})")
+        if existing_count >= num_experiments:
+            print(f"\nSkipping product {product_id} with budget {budget_name} - already has {existing_count} valid conversations (target: {num_experiments})")
             continue
             
         print(f"\nRunning experiments for product {product_id} with budget {budget_name}")
-        print(f"Found {existing_count} existing conversations, need {num_experiments - existing_count} more")
+        print(
+            f"Found {existing_count} valid conversations ({existing_total} JSON files), "
+            f"need {num_experiments - existing_count} more"
+        )
         
         # Calculate how many more experiments we need to run
         remaining_experiments = num_experiments - existing_count
         
-        # Find the next available experiment number
-        if append and existing_files:
-            # Extract experiment numbers from filenames like "product_1_exp_0.json"
-            exp_nums = [int(f.split('_exp_')[1].split('.')[0]) for f in existing_files]
-            start_num = max(exp_nums) + 1
-        else:
-            start_num = existing_count
+        # Always avoid overwriting parseable, invalid, or partially failed evidence files.
+        start_num = next_experiment_number(full_output_dir, product_id=product_id)
         
         # Run experiments
         for exp_num in range(remaining_experiments):
@@ -97,7 +103,8 @@ def _run_product_experiment(
                 summary_model=summary_model,
                 max_turns=max_turns,  # Used as a safety mechanism
                 experiment_num=experiment_num,
-                budget=budget_value  # Pass the budget value
+                budget=budget_value,  # Pass the budget value
+                judge_confirmation_model=judge_confirmation_model,
             )
             
             # Add budget name to the conversation object
@@ -115,9 +122,15 @@ def _run_product_experiment(
             if conversation.negotiation_completed:
                 print(f"Negotiation result: {conversation.negotiation_result}")
                 if conversation.negotiation_result == "accepted":
-                    print(f"Deal accepted at price: ${conversation.current_price_offer:.2f}")
+                    if conversation.current_price_offer is None:
+                        print("Deal accepted at price: None")
+                    else:
+                        print(f"Deal accepted at price: ${conversation.current_price_offer:.2f}")
                 elif conversation.negotiation_result == "rejected":
-                    print(f"Deal rejected. Final price offered: ${conversation.current_price_offer:.2f}")
+                    if conversation.current_price_offer is None:
+                        print("Deal rejected. Final price offered: None")
+                    else:
+                        print(f"Deal rejected. Final price offered: ${conversation.current_price_offer:.2f}")
             else:
                 print("Negotiation reached maximum turns without natural conclusion")
 
@@ -134,6 +147,8 @@ def run_experiment(
     append=False,
     budget_scenarios=None,
     dry_run=False,
+    include_error_files=False,
+    judge_confirmation_model=None,
 ):
     """Run experiments for the specified product index."""
     try:
@@ -158,6 +173,8 @@ def run_experiment(
         append=append,
         budget_scenarios=budget_scenarios,
         dry_run=dry_run,
+        include_error_files=include_error_files,
+        judge_confirmation_model=judge_confirmation_model,
     )
 
 def run_all_products(
@@ -174,6 +191,8 @@ def run_all_products(
     product_ids=None,
     budget_scenarios=None,
     dry_run=False,
+    include_error_files=False,
+    judge_confirmation_model=None,
 ):
     """Run experiments for all products in the dataset."""
     try:
@@ -209,6 +228,8 @@ def run_all_products(
             append=append,
             budget_scenarios=budget_scenarios,
             dry_run=dry_run,
+            include_error_files=include_error_files,
+            judge_confirmation_model=judge_confirmation_model,
         )
 
 def main():
@@ -218,6 +239,7 @@ def main():
     parser.add_argument("--buyer-model", default="gpt-3.5-turbo", help="Model to use for the buyer agent")
     parser.add_argument("--seller-model", default="gpt-3.5-turbo", help="Model to use for the seller agent")
     parser.add_argument("--summary-model", default="gpt-3.5-turbo", help="Model to use for extracting price offers from seller messages")
+    parser.add_argument("--judge-confirmation-model", default=None, help="Optional second-pass judge model for boundary cases")
     parser.add_argument("--max-turns", type=int, default=20, help="Maximum number of conversation turns (safety limit)")
     parser.add_argument("--output-dir", default="results", help="Directory to save results")
     parser.add_argument("--num-experiments", type=int, default=3, help="Number of experiments to run")
@@ -231,6 +253,7 @@ def main():
         help=f"Comma-separated budget scenarios: {', '.join(SUPPORTED_BUDGET_SCENARIOS)}",
     )
     parser.add_argument("--dry-run", action="store_true", help="Print planned runs without calling model APIs")
+    parser.add_argument("--include-error-files", action="store_true", help="Count data_error result JSON files as completed when resuming")
     parser.add_argument("--postprocess", action="store_true", help="Run non-destructive result postprocessing after this run")
     parser.add_argument("--postprocess-move-errors", action="store_true", help="When postprocessing, move error files into error_data/")
     parser.add_argument("--repair-price-scale", action="store_true", help="When postprocessing, apply price-scale repair suggestions")
@@ -254,6 +277,8 @@ def main():
         product_ids=product_ids,
         budget_scenarios=budget_scenarios,
         dry_run=args.dry_run,
+        include_error_files=args.include_error_files,
+        judge_confirmation_model=args.judge_confirmation_model,
     )
 
     if args.postprocess and not args.dry_run:

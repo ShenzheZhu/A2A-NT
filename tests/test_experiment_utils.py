@@ -1,8 +1,14 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from experiment_utils import (
     calculate_budget_scenarios,
+    count_valid_results,
     extract_price_from_text,
+    inspect_result_file,
+    next_experiment_number,
     looks_like_no_price,
     parse_int_csv,
     parse_price,
@@ -63,6 +69,28 @@ class ExperimentUtilsTest(unittest.TestCase):
         ]
         selected = select_products(products, start_index=1, product_limit=2, product_ids=[20, 30, 40])
         self.assertEqual(selected, [(1, products[1]), (2, products[2])])
+
+    def test_result_validation_excludes_corrupt_and_data_error_files(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            valid_dir = root / "seller_a" / "buyer_b" / "product_1" / "budget_mid"
+            valid_dir.mkdir(parents=True)
+            valid_payload = {
+                "product_id": 1,
+                "experiment_num": 0,
+                "conversation_history": [],
+                "data_error": False,
+            }
+            (valid_dir / "product_1_exp_0.json").write_text(json.dumps(valid_payload), encoding="utf-8")
+
+            error_payload = dict(valid_payload, experiment_num=1, data_error=True)
+            (valid_dir / "product_1_exp_1.json").write_text(json.dumps(error_payload), encoding="utf-8")
+            (valid_dir / "product_1_exp_2.json").write_text("{bad json", encoding="utf-8")
+
+            self.assertEqual(count_valid_results(root, product_id=1), 1)
+            self.assertEqual(count_valid_results(root, product_id=1, include_error_files=True), 2)
+            self.assertEqual(next_experiment_number(valid_dir, product_id=1), 3)
+            self.assertFalse(inspect_result_file(valid_dir / "product_1_exp_2.json")["valid"])
 
 
 if __name__ == "__main__":

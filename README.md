@@ -42,7 +42,7 @@ python3 main.py \
   --buyer-model openrouter/openai/gpt-4o-mini \
   --seller-model openrouter/openai/gpt-4o-mini \
   --summary-model openrouter/openai/gpt-4o-mini \
-  --budget-scenarios wholesale,mid,retail \
+  --budget-scenarios low,wholesale,mid,retail,high \
   --product-limit 1 \
   --dry-run
 ```
@@ -57,7 +57,7 @@ Inspect a configured sweep without calling model APIs:
 
 ```bash
 python3 scripts/validate_openrouter_models.py
-python3 scripts/run_sweep.py --dry-run
+python3 scripts/run_sweep.py --dry-run --parallel-workers 2
 ```
 
 Run a configured sweep:
@@ -71,6 +71,23 @@ Useful commands:
 ```bash
 python3 scripts/run_sweep.py --config configs/sweep_example.json --max-pairs 2 --product-limit 1 --dry-run
 python3 scripts/run_sweep.py --config configs/sweep_example.json --mode all --dry-run
+python3 scripts/run_sweep.py --config configs/sweep_example.json --mode all --parallel-workers 4 --continue-on-error
+```
+
+Live sweeps write a manifest under `logs/run_sessions/{run_id}/manifest.json`
+and per-pair logs under `logs/run_sessions/{run_id}/pairs/`. The manifest tracks
+the expected conversation cell count, completed valid JSON count, running pairs,
+failed pairs, and output directory. Resume logic counts only parseable result
+JSON files without `data_error` unless `--include-error-files` is explicitly
+provided.
+
+The primary summary model is used for seller-offer extraction and negotiation
+state judging. To compare candidate summary models on fixed price/judge fixtures:
+
+```bash
+python3 scripts/compare_summary_models.py
+python3 scripts/compare_summary_models.py --task judge --live
+python3 scripts/compare_summary_models.py --live
 ```
 
 ## Post-processing
@@ -154,6 +171,7 @@ python3 scripts/summarize_results.py --results-dir results/sweep
 │   └── products_consumer_electronics.json
 ├── scripts/
 │   ├── build_product_subset.py
+│   ├── compare_summary_models.py
 │   ├── run_sweep.py
 │   ├── summarize_results.py
 │   └── validate_openrouter_models.py

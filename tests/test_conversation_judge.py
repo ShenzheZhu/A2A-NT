@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from Conversation import Conversation, normalize_judge_label
+from LanguageModel import ModelCallError
 
 
 PRODUCT = {
@@ -20,6 +21,17 @@ class FakeSummaryModel:
 
     def get_response(self, _prompt):
         return self.response
+
+
+class FailingModel:
+    def __init__(self, category="billing_or_quota"):
+        self.category = category
+
+    def get_response(self, _prompt):
+        raise ModelCallError("fake-model", self.category, "fake failure", attempts=1)
+
+    def get_chat_response(self, _messages):
+        raise ModelCallError("fake-model", self.category, "fake failure", attempts=1)
 
 
 def make_conversation(summary_response="CONTINUE", budget=211.5, seller_offer=225):
@@ -71,6 +83,22 @@ class ConversationJudgeTest(unittest.TestCase):
         self.assertEqual(conversation.judge_events[-1]["guarded_label"], "ACCEPTANCE")
         self.assertTrue(conversation.judge_events[-1]["accepted_over_budget"])
 
+    def test_confirmation_model_can_downgrade_boundary_acceptance(self):
+        conversation = make_conversation(summary_response="ACCEPTANCE", budget=211.5, seller_offer=225)
+        conversation.judge_confirmation_model = FakeSummaryModel("CONTINUE")
+        conversation.judge_confirmation_model_name = "fake-confirmation"
+        conversation.conversation_history = [
+            {"speaker": "Seller", "message": "I can do $225."},
+            {"speaker": "Buyer", "message": "Deal at $225, only if delivery is included."},
+        ]
+
+        completed = conversation.evaluate_negotiation_state()
+
+        self.assertFalse(completed)
+        self.assertEqual(conversation.judge_events[-1]["confirmation_label"], "CONTINUE")
+        self.assertEqual(conversation.judge_events[-1]["guarded_label"], "CONTINUE")
+        self.assertEqual(conversation.judge_events[-1]["confirmation_override_reason"], "terminal_acceptance_downgraded")
+
     def test_rejection_with_counter_offer_continues_negotiation(self):
         conversation = make_conversation(summary_response="REJECTION", budget=211.5, seller_offer=225)
         conversation.conversation_history = [
@@ -91,6 +119,7 @@ class ConversationJudgeTest(unittest.TestCase):
 
         self.assertEqual(price, 225)
         self.assertEqual(conversation.price_extraction_events[-1]["source"], "seller_message_single_currency")
+        self.assertTrue(conversation.data_error)
 
     def test_save_conversation_includes_judge_events(self):
         conversation = make_conversation(summary_response="ACCEPTANCE", budget=300, seller_offer=225)
@@ -104,6 +133,22 @@ class ConversationJudgeTest(unittest.TestCase):
             conversation.save_conversation(tmp_dir)
             output = Path(tmp_dir) / "product_1_exp_0.json"
             self.assertIn('"judge_events"', output.read_text(encoding="utf-8"))
+            self.assertEqual(list(Path(tmp_dir).glob("*.tmp.*")), [])
+
+    def test_buyer_intro_failure_is_saved_as_data_error(self):
+        conversation = make_conversation(summary_response="CONTINUE")
+        conversation.buyer_model = FailingModel("billing_or_quota")
+
+        conversation.run_negotiation()
+
+        self.assertTrue(conversation.data_error)
+        self.assertEqual(conversation.negotiation_result, "model_error")
+        self.assertEqual(conversation.error["role"], "buyer")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            conversation.save_conversation(tmp_dir)
+            output = (Path(tmp_dir) / "product_1_exp_0.json").read_text(encoding="utf-8")
+            self.assertIn('"data_error": true', output)
 
 
 if __name__ == "__main__":
