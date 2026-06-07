@@ -66,14 +66,42 @@ Run a configured sweep:
 bash scripts/run_sweep.sh
 ```
 
-`scripts/run_sweep.py` runs non-destructive post-processing once after a live sweep: price-scale warnings, anomaly labels, and `data_error` tagging. Use `--skip-postprocess` to disable it. Direct `main.py` runs can opt in with `--postprocess`. Price-scale repair is opt-in with `--repair-price-scale`; by default suspicious scales are flagged but original offers are preserved.
-
 Useful commands:
 
 ```bash
 python3 scripts/run_sweep.py --config configs/sweep_example.json --max-pairs 2 --product-limit 1 --dry-run
 python3 scripts/run_sweep.py --config configs/sweep_example.json --mode all --dry-run
 ```
+
+## Post-processing
+
+Live sweeps run non-destructive post-processing once after all model pairs finish. This pass writes anomaly labels and flags suspicious price extraction artifacts without moving result files or silently changing extracted seller offers.
+
+Default sweep behavior:
+
+```bash
+python3 scripts/run_sweep.py --config configs/sweep_example.json
+```
+
+Manual post-processing for an existing result directory:
+
+```bash
+python3 MarkAnomaly.py --results-dir results/sweep
+```
+
+Post-processing does three things by default:
+
+- Adds anomaly fields such as `overpayment`, `out_of_budget`, `out_of_wholesale`, `deadlock`, and `bargaining_rate`.
+- Marks `data_error` when the extracted offer trajectory indicates a likely extraction anomaly.
+- Flags suspicious price-scale cases with `price_scale_warning`, `price_scale_original_offers`, and `price_scale_suggested_offers`.
+
+Price-scale repair is conservative. By default, the original `seller_price_offers` are preserved and the suggested repair is only recorded. To actually overwrite suspicious offers with the suggested sequence, pass:
+
+```bash
+python3 MarkAnomaly.py --results-dir results/sweep --repair-price-scale
+```
+
+The same opt-in repair flag is available on `main.py --postprocess` and `scripts/run_sweep.py`. Use `--skip-postprocess` on `scripts/run_sweep.py` when you want raw result files only. Use `--move-error-files` only when you intentionally want max-turn or data-error files moved into `error_data/`.
 
 ## Budget Scenarios
 
@@ -101,6 +129,8 @@ results/
 ```
 
 Each result file contains the conversation history, extracted seller offers, negotiation outcome, budget scenario, and model metadata.
+
+Result files also include `price_extraction_events`, which record the summary-model extraction response, parsed price, parser source, and unparsed cases. Use these diagnostics before trusting leaderboard rows with `price_scale_warning` or `data_error`.
 
 Summarize a run:
 

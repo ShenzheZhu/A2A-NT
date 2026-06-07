@@ -14,13 +14,6 @@ Create a Python 3.9 environment, then run `pip install -r requirements.txt`. Mai
   Checks configured model IDs against the OpenRouter model API.
 - `bash scripts/run_sweep.sh`
   Launches the configured sweep through `configs/sweep_example.json`.
-- `bash run_all.sh`
-  Launches the legacy full model-grid experiment sweep and then runs anomaly marking.
-- `bash train.sh`
-  Trains the RL prompt bandit and writes logs/artifacts under `logs/` and `artifacts/`.
-- `bash eval.sh`
-  Evaluates the saved RL policy across seller models.
-
 ## Coding Style & Naming Conventions
 Follow the existing Python style: 4-space indentation, simple module-level functions, and concise docstrings where behavior is non-obvious. Preserve current filenames for public modules even though legacy files use `CamelCase.py`; prefer `snake_case` for new functions, variables, CLI flags, and internal helpers. No formatter or linter is configured, so keep imports tidy and changes minimal.
 
