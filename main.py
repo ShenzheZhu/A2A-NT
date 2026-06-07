@@ -1,42 +1,21 @@
 import os
-import json
 import argparse
-import re
 from Conversation import Conversation
-
-def safe_path_name(value):
-    """Return a filesystem-safe label while preserving readable model names."""
-    return re.sub(r"[^A-Za-z0-9._=-]+", "__", value).strip("_") or "model"
-
-
-def parse_price(price_str):
-    """Parse a dollar price string into a float."""
-    return float(str(price_str).replace("$", "").replace(",", ""))
-
-
-def calculate_budget_scenarios(retail_price_str, wholesale_price_str):
-    """Calculate the supported budget scenarios."""
-    retail_price = parse_price(retail_price_str)
-    wholesale_price = parse_price(wholesale_price_str)
-
-    return {
-        "high": retail_price * 1.2,  # Retail Price * 1.2
-        "retail": retail_price,  # Retail Price
-        "mid": (retail_price + wholesale_price) / 2,  # (Retail Price + Wholesale Price) / 2
-        "wholesale": wholesale_price,  # Wholesale Price
-        "low": wholesale_price * 0.8  # Wholesale Price * 0.8
-    }
+from experiment_utils import (
+    SUPPORTED_BUDGET_SCENARIOS,
+    calculate_budget_scenarios,
+    load_products,
+    parse_csv,
+    parse_int_csv,
+    result_base_dir,
+    select_budget_scenarios,
+    select_products,
+)
 
 
-def parse_csv(value):
-    if value is None:
-        return None
-    return [item.strip() for item in value.split(",") if item.strip()]
-
-
-def run_experiment(
+def _run_product_experiment(
     product_index,
-    products_file,
+    product,
     buyer_model,
     seller_model,
     summary_model,
@@ -49,37 +28,18 @@ def run_experiment(
 ):
     """Run experiments for the specified product."""
     print(f"\nStarting experiments for product {product_index}...")
-    
-    # Load product data
-    with open(products_file, "r") as f:
-        products = json.load(f)
-    
-    if not isinstance(products, list):
-        print(f"Error: {products_file} must contain a list of products")
-        return None
-        
-    if product_index < 0 or product_index >= len(products):
-        print(f"Error: Invalid product index {product_index}")
-        return None
-        
-    product = products[product_index]
+
     product_id = product.get("id", product_index + 1)
     
     all_budgets = calculate_budget_scenarios(
         product["Retail Price"],
         product["Wholesale Price"]
     )
-    budget_scenarios = budget_scenarios or ["wholesale", "mid", "retail"]
-    missing_budgets = [name for name in budget_scenarios if name not in all_budgets]
-    if missing_budgets:
-        raise ValueError(f"Unsupported budget scenarios: {', '.join(missing_budgets)}")
-    budgets = {name: all_budgets[name] for name in budget_scenarios}
+    budgets = select_budget_scenarios(all_budgets, budget_scenarios)
 
     # Create output directory structure
     # Format: seller_{seller_model}/{buyer_model}/product_{product_id}
-    seller_dir = safe_path_name(seller_model)
-    buyer_dir = safe_path_name(buyer_model)
-    base_output_dir = os.path.join(output_dir, f"seller_{seller_dir}", buyer_dir, f"product_{product_id}")
+    base_output_dir = result_base_dir(output_dir, seller_model, buyer_model, product_id)
     
     # Run experiments for each budget scenario
     for budget_name, budget_value in budgets.items():
@@ -161,6 +121,45 @@ def run_experiment(
             else:
                 print("Negotiation reached maximum turns without natural conclusion")
 
+
+def run_experiment(
+    product_index,
+    products_file,
+    buyer_model,
+    seller_model,
+    summary_model,
+    max_turns,
+    num_experiments=3,
+    output_dir="results",
+    append=False,
+    budget_scenarios=None,
+    dry_run=False,
+):
+    """Run experiments for the specified product index."""
+    try:
+        products = load_products(products_file)
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        return None
+
+    if product_index < 0 or product_index >= len(products):
+        print(f"Error: Invalid product index {product_index}")
+        return None
+
+    return _run_product_experiment(
+        product_index=product_index,
+        product=products[product_index],
+        buyer_model=buyer_model,
+        seller_model=seller_model,
+        summary_model=summary_model,
+        max_turns=max_turns,
+        num_experiments=num_experiments,
+        output_dir=output_dir,
+        append=append,
+        budget_scenarios=budget_scenarios,
+        dry_run=dry_run,
+    )
+
 def run_all_products(
     products_file,
     buyer_model,
@@ -177,38 +176,30 @@ def run_all_products(
     dry_run=False,
 ):
     """Run experiments for all products in the dataset."""
-    # Load all products
-    with open(products_file, "r") as f:
-        products = json.load(f)
-    
-    if not isinstance(products, list):
-        print(f"Error: {products_file} must contain a list of products")
+    try:
+        products = load_products(products_file)
+    except ValueError as exc:
+        print(f"Error: {exc}")
         return
     
     print(f"Found {len(products)} products in the dataset.")
     print(f"Using products from: {products_file}")
-    
-    product_ids_set = set(product_ids) if product_ids else None
-    selected_products = products[start_index:]
-    if product_ids_set is not None:
-        selected_products = [
-            product for product in selected_products
-            if int(product.get("id", -1)) in product_ids_set
-        ]
-    if product_limit is not None:
-        selected_products = selected_products[:product_limit]
+    selected_products = select_products(
+        products,
+        start_index=start_index,
+        product_limit=product_limit,
+        product_ids=product_ids,
+    )
 
     # Run experiments for each selected product
-    id_to_index = {int(product.get("id", index + 1)): index for index, product in enumerate(products)}
-    for offset, product in enumerate(selected_products):
-        i = id_to_index.get(int(product.get("id", start_index + offset + 1)), start_index + offset)
+    for i, product in selected_products:
         print(f"\n{'='*50}")
         print(f"Processing product {i+1}/{len(products)}: {product['Product Name']}")
         print(f"{'='*50}")
         
-        run_experiment(
+        _run_product_experiment(
             product_index=i,
-            products_file=products_file,
+            product=product,
             buyer_model=buyer_model,
             seller_model=seller_model,
             summary_model=summary_model,
@@ -237,12 +228,12 @@ def main():
     parser.add_argument(
         "--budget-scenarios",
         default="wholesale,mid,retail",
-        help="Comma-separated budget scenarios: low, wholesale, mid, retail, high",
+        help=f"Comma-separated budget scenarios: {', '.join(SUPPORTED_BUDGET_SCENARIOS)}",
     )
     parser.add_argument("--dry-run", action="store_true", help="Print planned runs without calling model APIs")
     
     args = parser.parse_args()
-    product_ids = [int(item) for item in parse_csv(args.product_ids) or []]
+    product_ids = parse_int_csv(args.product_ids)
     budget_scenarios = parse_csv(args.budget_scenarios)
     
     # Run experiments for all products

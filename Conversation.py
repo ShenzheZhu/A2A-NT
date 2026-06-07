@@ -2,6 +2,7 @@ import json
 from LanguageModel import LanguageModel
 import os
 import re
+from experiment_utils import parse_price
 
 class Conversation:
     def __init__(self, product_data, buyer_model="gpt-3.5-turbo", seller_model="gpt-3.5-turbo", summary_model="gpt-3.5-turbo", max_turns=20, experiment_num=0, budget=None):
@@ -27,7 +28,7 @@ class Conversation:
         self.seller_price_offers = []
         # Add the original retail price as the first element
         retail_price_str = product_data["Retail Price"]
-        self.seller_price_offers.append(float(retail_price_str.replace("$", "").replace(",", "")))
+        self.seller_price_offers.append(parse_price(retail_price_str))
         # Most recent seller price offer
         self.current_price_offer = None
         # Flag to indicate if negotiation was completed successfully
@@ -366,4 +367,3 @@ class Conversation:
             json.dump(output_data, f, indent=2)
         
         print(f"Conversation saved to: {output_file}")
-

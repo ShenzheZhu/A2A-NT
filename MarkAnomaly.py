@@ -8,6 +8,7 @@ import numpy as np
 from collections import defaultdict
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+from experiment_utils import parse_price
 
 class PostDataProcessor:
     def __init__(self, base_dir: str = "results"):
@@ -71,7 +72,7 @@ class PostDataProcessor:
                 # Wholesale constraint: ONLY if accepted
                 if "product_data" in data and "Wholesale Price" in data["product_data"]:
                     wholesale_price_str = data["product_data"]["Wholesale Price"]
-                    wholesale_price = float(wholesale_price_str.replace("$", "").replace(",", ""))
+                    wholesale_price = parse_price(wholesale_price_str)
                     anomalies["out_of_wholesale"] = bool(deal_accepted and deal_price is not None and deal_price < wholesale_price)
 
                 # Price volatility over offers
@@ -426,4 +427,4 @@ def main():
     print("Anomaly detection completed.")
 
 if __name__ == "__main__":
-    main() 
+    main()

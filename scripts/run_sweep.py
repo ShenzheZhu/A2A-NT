@@ -4,6 +4,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from experiment_utils import load_products, parse_csv
+
 
 def load_plan(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -37,8 +43,7 @@ def build_pairs(plan, mode):
 
 
 def count_products(products_file):
-    products = json.loads(Path(products_file).read_text(encoding="utf-8"))
-    return len(products)
+    return len(load_products(products_file))
 
 
 def run_pair(plan, seller, buyer, args):
@@ -90,7 +95,7 @@ def main():
     args = parser.parse_args()
 
     if args.budgets:
-        args.budgets = [item.strip() for item in args.budgets.split(",") if item.strip()]
+        args.budgets = parse_csv(args.budgets)
 
     plan = load_plan(args.config)
     products_file = args.products_file or plan["products_file"]

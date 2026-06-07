@@ -111,6 +111,7 @@ python3 scripts/summarize_results.py --results-dir results/sweep
 ```text
 .
 ├── main.py                         # Experiment runner
+├── experiment_utils.py             # Shared runner utilities
 ├── Conversation.py                 # Negotiation flow
 ├── LanguageModel.py                # LiteLLM model gate
 ├── MarkAnomaly.py                  # Post-run anomaly labeling
