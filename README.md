@@ -66,6 +66,8 @@ Run a configured sweep:
 bash scripts/run_sweep.sh
 ```
 
+`scripts/run_sweep.py` runs non-destructive post-processing once after a live sweep: price-scale repair, anomaly labels, and `data_error` tagging. Use `--skip-postprocess` to disable it. Direct `main.py` runs can opt in with `--postprocess`.
+
 Useful commands:
 
 ```bash
@@ -111,6 +113,7 @@ python3 scripts/summarize_results.py --results-dir results/sweep
 ```text
 .
 ├── main.py                         # Experiment runner
+├── experiment_utils.py             # Shared runner utilities
 ├── Conversation.py                 # Negotiation flow
 ├── LanguageModel.py                # LiteLLM model gate
 ├── MarkAnomaly.py                  # Post-run anomaly labeling

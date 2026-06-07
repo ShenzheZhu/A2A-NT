@@ -1,13 +1,16 @@
 import argparse
 import json
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from experiment_utils import load_products, parse_int_csv
 
 
 CONSUMER_ELECTRONICS_IDS = list(range(41, 71))
-
-
-def parse_ids(value):
-    return [int(item.strip()) for item in value.split(",") if item.strip()]
 
 
 def main():
@@ -23,8 +26,8 @@ def main():
 
     source = Path(args.source)
     output = Path(args.output)
-    product_ids = set(parse_ids(args.ids))
-    products = json.loads(source.read_text(encoding="utf-8"))
+    product_ids = set(parse_int_csv(args.ids))
+    products = load_products(source)
     selected = [product for product in products if int(product.get("id", -1)) in product_ids]
 
     missing = sorted(product_ids - {int(product.get("id", -1)) for product in selected})

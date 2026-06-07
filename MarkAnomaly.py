@@ -1,3 +1,4 @@
+import argparse
 import os
 import json
 import math
@@ -8,6 +9,27 @@ import numpy as np
 from collections import defaultdict
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+from experiment_utils import parse_price
+
+
+def json_safe(value):
+    if isinstance(value, np.generic):
+        value = value.item()
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_safe(item) for item in value]
+    return value
+
+
+def write_json_file(file_path: str, data: Dict[str, Any]) -> None:
+    tmp_path = f"{file_path}.tmp"
+    with open(tmp_path, 'w', encoding='utf-8') as f:
+        json.dump(json_safe(data), f, indent=2, ensure_ascii=False)
+    os.replace(tmp_path, file_path)
+
 
 class PostDataProcessor:
     def __init__(self, base_dir: str = "results"):
@@ -71,7 +93,7 @@ class PostDataProcessor:
                 # Wholesale constraint: ONLY if accepted
                 if "product_data" in data and "Wholesale Price" in data["product_data"]:
                     wholesale_price_str = data["product_data"]["Wholesale Price"]
-                    wholesale_price = float(wholesale_price_str.replace("$", "").replace(",", ""))
+                    wholesale_price = parse_price(wholesale_price_str)
                     anomalies["out_of_wholesale"] = bool(deal_accepted and deal_price is not None and deal_price < wholesale_price)
 
                 # Price volatility over offers
@@ -102,7 +124,7 @@ class PostDataProcessor:
                 data = json.load(f)
             
             # Calculate anomalies
-            anomalies = self.calculate_anomalies(data)
+            anomalies = json_safe(self.calculate_anomalies(data))
             
             # Update data with anomalies
             modified = False
@@ -124,8 +146,7 @@ class PostDataProcessor:
                     self.stats["overpayment"] += 1
                 
                 # Save modified data
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, indent=2, ensure_ascii=False)
+                write_json_file(file_path, data)
             
             return modified
             
@@ -157,6 +178,13 @@ class PostDataProcessor:
         print(f"See {self.log_file} for details of changes made.")
 
 
+def iter_result_files(base_dir: str = "results"):
+    for root, _, files in os.walk(base_dir):
+        for file in files:
+            if file.endswith(".json"):
+                yield os.path.join(root, file)
+
+
 def fix_price_scale(price_list):
     if not price_list or len(price_list) <= 1:
         return price_list, False
@@ -186,9 +214,7 @@ def fix_price_scale(price_list):
                 fixed_list[i] = current / scale_factor
     return fixed_list, changed
 
-def fix_price_scale_in_files():
-    base_dir = "results"
-    log_file = "logs/price_scale_fixes_log.txt"
+def fix_price_scale_in_files(base_dir: str = "results", log_file: str = "logs/price_scale_fixes_log.txt"):
 
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
@@ -198,28 +224,24 @@ def fix_price_scale_in_files():
     with open(log_file, 'w', encoding='utf-8') as log:
         log.write("Fixing price scale inconsistencies in JSON files\n")
         log.write("=" * 80 + "\n")
-        for root, _, files in os.walk(base_dir):
-            for file in files:
-                if file.endswith('.json'):
-                    total_files += 1
-                    file_path = os.path.join(root, file)
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                        if "seller_price_offers" in data:
-                            original_offers = data["seller_price_offers"]
-                            fixed_offers, was_modified = fix_price_scale(original_offers)
-                            if was_modified:
-                                modified_files += 1
-                                data["seller_price_offers"] = fixed_offers
-                                with open(file_path, 'w', encoding='utf-8') as f:
-                                    json.dump(data, f, indent=2, ensure_ascii=False)
-                                log.write(f"Modified: {file_path}\n")
-                                log.write(f"Original: {original_offers}\n")
-                                log.write(f"Fixed: {fixed_offers}\n")
-                                log.write("-" * 80 + "\n")
-                    except Exception as e:
-                        log.write(f"Error processing {file_path}: {str(e)}\n")
+        for file_path in iter_result_files(base_dir):
+            total_files += 1
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                if "seller_price_offers" in data:
+                    original_offers = data["seller_price_offers"]
+                    fixed_offers, was_modified = fix_price_scale(original_offers)
+                    if was_modified:
+                        modified_files += 1
+                        data["seller_price_offers"] = fixed_offers
+                        write_json_file(file_path, data)
+                        log.write(f"Modified: {file_path}\n")
+                        log.write(f"Original: {original_offers}\n")
+                        log.write(f"Fixed: {fixed_offers}\n")
+                        log.write("-" * 80 + "\n")
+            except Exception as e:
+                log.write(f"Error processing {file_path}: {str(e)}\n")
         log.write("\nSummary:\n")
         log.write(f"Total files processed: {total_files}\n")
         log.write(f"Files modified: {modified_files}\n")
@@ -245,43 +267,28 @@ def get_model_combinations():
     
     return seller_models, sorted(list(buyer_models))
 
-def move_max_turns_files():
+def move_max_turns_files(base_dir: str = "results", target_dir: str = "error_data/max_turn", log_file: str = "logs/max_turns_moves_log.txt"):
     """Move files with max_turns_reached to a separate directory."""
-    base_dir = "results"
-    target_dir = "error_data/max_turn"
-    seller_models, buyer_models = get_model_combinations()
-    budgets = ["budget_low", "budget_mid", "budget_high", "budget_wholesale", "budget_retail"]
-    products = range(1, 101)
-    
     moved_count = 0
-    log_file = "logs/max_turns_moves_log.txt"
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    
+
     with open(log_file, 'w', encoding='utf-8') as log:
         log.write("Moving max_turns_reached files to error_data/max_turn\n")
         log.write("=" * 80 + "\n")
-        
-        for seller_model in seller_models:
-            for buyer_model in buyer_models:
-                for product_num in products:
-                    for budget in budgets:
-                        rel_path = os.path.join(
-                            seller_model, buyer_model, f"product_{product_num}", budget, f"product_{product_num}_exp_0.json"
-                        )
-                        json_path = os.path.join(base_dir, rel_path)
-                        if os.path.exists(json_path):
-                            try:
-                                with open(json_path, "r", encoding="utf-8") as f:
-                                    data = json.load(f)
-                                if data.get("negotiation_result") == "max_turns_reached":
-                                    # Create target directory
-                                    dest_path = os.path.join(target_dir, rel_path)
-                                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                                    shutil.move(json_path, dest_path)
-                                    moved_count += 1
-                                    log.write(f"Moved: {json_path} -> {dest_path}\n")
-                            except Exception as e:
-                                log.write(f"Error processing {json_path}: {str(e)}\n")
+
+        for json_path in list(iter_result_files(base_dir)):
+            try:
+                with open(json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if data.get("negotiation_result") == "max_turns_reached":
+                    rel_path = os.path.relpath(json_path, base_dir)
+                    dest_path = os.path.join(target_dir, rel_path)
+                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                    shutil.move(json_path, dest_path)
+                    moved_count += 1
+                    log.write(f"Moved: {json_path} -> {dest_path}\n")
+            except Exception as e:
+                log.write(f"Error processing {json_path}: {str(e)}\n")
         
         log.write("\nSummary:\n")
         log.write(f"Total files moved: {moved_count}\n")
@@ -289,17 +296,9 @@ def move_max_turns_files():
     print(f"Max turns files processing completed. {moved_count} files moved to {target_dir}")
     print(f"See {log_file} for details of moves made.")
 
-def mark_anomalous_data_with_error():
+def mark_anomalous_data_with_error(base_dir: str = "results", log_file: str = "logs/data_error_tag_log.txt"):
     """Mark files with price increase anomalies with data_error flag."""
-    base_dir = "results"
-    log_file = "logs/data_error_tag_log.txt"
-    
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    
-    seller_models, buyer_models = get_model_combinations()
-    budgets = ["budget_low", "budget_mid", "budget_high", "budget_wholesale", "budget_retail"]
-    products = range(1, 101)
-    
     total_files = 0
     modified_files = 0
     
@@ -307,45 +306,33 @@ def mark_anomalous_data_with_error():
         log.write("Adding data_error flag to anomalous JSON files\n")
         log.write("=" * 80 + "\n")
         
-        for seller_model in seller_models:
-            for buyer_model in buyer_models:
-                for product_num in products:
-                    for budget in budgets:
-                        json_path = os.path.join(
-                            base_dir, seller_model, buyer_model, f"product_{product_num}", budget, f"product_{product_num}_exp_0.json"
-                        )
-                        if os.path.exists(json_path):
-                            total_files += 1
-                            try:
-                                # Read data
-                                with open(json_path, 'r', encoding='utf-8') as f:
-                                    data = json.load(f)
-                                
-                                # Check for price increase anomaly
-                                is_anomalous = False
-                                anomaly_details = ""
-                                
-                                if "seller_price_offers" in data and isinstance(data["seller_price_offers"], list) and len(data["seller_price_offers"]) > 1:
-                                    offers = data["seller_price_offers"]
-                                    if offers[-1] > offers[0]:
-                                        is_anomalous = True
-                                        anomaly_details = f"price increase: {offers[0]} -> {offers[-1]}"
-                                
-                                # Add data_error flag if anomalous
-                                if is_anomalous:
-                                    data["data_error"] = True
-                                    modified_files += 1
-                                    
-                                    # Write modified data back
-                                    with open(json_path, 'w', encoding='utf-8') as f:
-                                        json.dump(data, f, indent=2, ensure_ascii=False)
-                                    
-                                    log.write(f"Marked as anomalous: {json_path}\n")
-                                    log.write(f"Reason: {anomaly_details}\n")
-                                    log.write("-" * 80 + "\n")
-                                    
-                            except Exception as e:
-                                log.write(f"Error processing {json_path}: {str(e)}\n")
+        for json_path in iter_result_files(base_dir):
+            total_files += 1
+            try:
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+
+                is_anomalous = False
+                anomaly_details = ""
+
+                if "seller_price_offers" in data and isinstance(data["seller_price_offers"], list) and len(data["seller_price_offers"]) > 1:
+                    offers = data["seller_price_offers"]
+                    if offers[-1] > offers[0]:
+                        is_anomalous = True
+                        anomaly_details = f"price increase: {offers[0]} -> {offers[-1]}"
+
+                if is_anomalous and not data.get("data_error"):
+                    data["data_error"] = True
+                    modified_files += 1
+
+                    write_json_file(json_path, data)
+
+                    log.write(f"Marked as anomalous: {json_path}\n")
+                    log.write(f"Reason: {anomaly_details}\n")
+                    log.write("-" * 80 + "\n")
+
+            except Exception as e:
+                log.write(f"Error processing {json_path}: {str(e)}\n")
         
         log.write("\nSummary:\n")
         log.write(f"Total files processed: {total_files}\n")
@@ -354,43 +341,28 @@ def mark_anomalous_data_with_error():
     print(f"Anomaly marking completed. {total_files} files processed, {modified_files} files tagged with data_error=True.")
     print(f"See {log_file} for details of changes made.")
 
-def move_higher_than_retail_files():
+def move_higher_than_retail_files(base_dir: str = "results", target_dir: str = "error_data/higher_than_retail", log_file: str = "logs/higher_than_retail_moves_log.txt"):
     """Move all files marked with data_error=True to a separate directory."""
-    base_dir = "results"
-    target_dir = "error_data/higher_than_retail"
-    seller_models, buyer_models = get_model_combinations()
-    budgets = ["budget_low", "budget_mid", "budget_high", "budget_wholesale", "budget_retail"]
-    products = range(1, 101)
-    
     moved_count = 0
-    log_file = "logs/higher_than_retail_moves_log.txt"
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     
     with open(log_file, 'w', encoding='utf-8') as log:
         log.write("Moving data_error=True files to error_data\higher_than_retail\n")
         log.write("=" * 80 + "\n")
         
-        for seller_model in seller_models:
-            for buyer_model in buyer_models:
-                for product_num in products:
-                    for budget in budgets:
-                        rel_path = os.path.join(
-                            seller_model, buyer_model, f"product_{product_num}", budget, f"product_{product_num}_exp_0.json"
-                        )
-                        json_path = os.path.join(base_dir, rel_path)
-                        if os.path.exists(json_path):
-                            try:
-                                with open(json_path, "r", encoding="utf-8") as f:
-                                    data = json.load(f)
-                                if data.get("data_error") == True:
-                                    # Create target directory
-                                    dest_path = os.path.join(target_dir, rel_path)
-                                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                                    shutil.move(json_path, dest_path)
-                                    moved_count += 1
-                                    log.write(f"Moved: {json_path} -> {dest_path}\n")
-                            except Exception as e:
-                                log.write(f"Error processing {json_path}: {str(e)}\n")
+        for json_path in list(iter_result_files(base_dir)):
+            try:
+                with open(json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if data.get("data_error") == True:
+                    rel_path = os.path.relpath(json_path, base_dir)
+                    dest_path = os.path.join(target_dir, rel_path)
+                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                    shutil.move(json_path, dest_path)
+                    moved_count += 1
+                    log.write(f"Moved: {json_path} -> {dest_path}\n")
+            except Exception as e:
+                log.write(f"Error processing {json_path}: {str(e)}\n")
         
         log.write("\nSummary:\n")
         log.write(f"Total files moved: {moved_count}\n")
@@ -398,32 +370,37 @@ def move_higher_than_retail_files():
     print(f"Data error files processing completed. {moved_count} files moved to {target_dir}")
     print(f"See {log_file} for details of moves made.")
 
-def main():
+def run_postprocess(base_dir: str = "results", move_error_files: bool = False):
     # First fix price scale issues
     print("Starting price scale fixes...")
-    fix_price_scale_in_files()
+    fix_price_scale_in_files(base_dir=base_dir)
     print("Price scale fixes completed.")
-    
-    # Then move max turns files
-    print("\nMoving max turns reached files...")
-    move_max_turns_files()
-    print("Max turns files processing completed.")
-    
-    # Then mark anomalous data
+
     print("\nMarking anomalous data...")
-    mark_anomalous_data_with_error()
+    mark_anomalous_data_with_error(base_dir=base_dir)
     print("Anomaly marking completed.")
-    
-    # Move data error files
-    print("\nMoving data error files...")
-    move_higher_than_retail_files()
-    print("Data error files processing completed.")
-    
-    # Finally process all files
+
+    if move_error_files:
+        print("\nMoving max turns reached files...")
+        move_max_turns_files(base_dir=base_dir)
+        print("Max turns files processing completed.")
+
+        print("\nMoving data error files...")
+        move_higher_than_retail_files(base_dir=base_dir)
+        print("Data error files processing completed.")
+
     print("\nStarting anomaly detection...")
-    processor = PostDataProcessor()
+    processor = PostDataProcessor(base_dir=base_dir)
     processor.process_all_files()
     print("Anomaly detection completed.")
 
+
+def main():
+    parser = argparse.ArgumentParser(description="Post-process A2A-NT result JSON files.")
+    parser.add_argument("--results-dir", default="results")
+    parser.add_argument("--move-error-files", action="store_true", help="Move max-turn/data-error files into error_data/")
+    args = parser.parse_args()
+    run_postprocess(base_dir=args.results_dir, move_error_files=args.move_error_files)
+
 if __name__ == "__main__":
-    main() 
+    main()
