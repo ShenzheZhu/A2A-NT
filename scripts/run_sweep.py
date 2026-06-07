@@ -338,8 +338,8 @@ def main():
     try:
         run_pairs(plan, pairs, args, manifest=manifest, session_dir=session_dir)
         failed_pairs = manifest.payload.get("failed_pairs", [])
-        status = "completed_with_failures" if failed_pairs else "completed"
-        manifest.update(status=status)
+        final_status = "completed_with_failures" if failed_pairs else "completed"
+        manifest.update(status=final_status)
     except Exception:
         manifest.update(status="failed")
         raise
@@ -354,7 +354,7 @@ def main():
             repair_price_scale=args.repair_price_scale,
         )
         manifest.update(
-            status="completed",
+            status=final_status,
             completed_result_json_count=count_valid_results(
                 args.output_dir or plan["output_dir"],
                 include_error_files=False,
