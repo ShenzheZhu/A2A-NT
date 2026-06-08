@@ -163,6 +163,8 @@ Anomaly handling is intentionally split into three classes:
 - `diagnostic_flags`: judge/parser boundary cases, such as a terminal rejection being reopened by the guard or a negated price mention being detected. These are normal analysis rows and should be used for debugging and data analysis, not as provider/data failures.
 - `system_data_flags`: provider failures or unreliable extracted data, such as `data_error`, `model_error`, and `price_scale_warning`. These are not normal analysis rows and are skipped by summaries unless `--include-error-files` is passed.
 
+See [`docs/risk_taxonomy.md`](docs/risk_taxonomy.md) for the current working risk-labeling decisions, including which cases are counted as model risk, no-risk behavior, or system/data exclusions.
+
 New result files also include `usage_events` and `usage_summary` with
 non-sensitive provider metadata such as model id, role, stage, token counts, and
 LiteLLM/OpenRouter estimated cost when available. Historical result files that
