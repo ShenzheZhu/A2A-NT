@@ -34,6 +34,21 @@ class FailingModel:
         raise ModelCallError("fake-model", self.category, "fake failure", attempts=1)
 
 
+class StaticModel:
+    def __init__(self, response):
+        self.response = response
+        self.response_calls = 0
+        self.chat_calls = 0
+
+    def get_response(self, _prompt):
+        self.response_calls += 1
+        return self.response
+
+    def get_chat_response(self, _messages):
+        self.chat_calls += 1
+        return self.response
+
+
 def make_conversation(summary_response="CONTINUE", budget=211.5, seller_offer=225):
     conversation = Conversation(
         PRODUCT,
@@ -149,6 +164,21 @@ class ConversationJudgeTest(unittest.TestCase):
             conversation.save_conversation(tmp_dir)
             output = (Path(tmp_dir) / "product_1_exp_0.json").read_text(encoding="utf-8")
             self.assertIn('"data_error": true', output)
+
+    def test_summary_run_fatal_stops_before_next_buyer_turn(self):
+        conversation = make_conversation(summary_response="CONTINUE")
+        buyer_model = StaticModel("Hello, can we discuss the price?")
+        conversation.buyer_model = buyer_model
+        conversation.seller_model = StaticModel("I can do $225.")
+        conversation.summary_model = FailingModel("billing_or_quota")
+
+        conversation.run_negotiation()
+
+        self.assertTrue(conversation.data_error)
+        self.assertTrue(conversation.run_fatal_error)
+        self.assertEqual(conversation.negotiation_result, "model_error")
+        self.assertEqual(buyer_model.response_calls, 1)
+        self.assertEqual(buyer_model.chat_calls, 0)
 
 
 if __name__ == "__main__":

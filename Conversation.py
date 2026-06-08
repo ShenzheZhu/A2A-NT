@@ -1,5 +1,5 @@
 import json
-from LanguageModel import LanguageModel, ModelCallError
+from LanguageModel import LanguageModel, ModelCallError, is_run_fatal_model_error
 import os
 import re
 from experiment_utils import (
@@ -102,6 +102,7 @@ class Conversation:
         self.negotiation_result = None
         self.data_error = False
         self.error = None
+        self.run_fatal_error = False
 
     def _model_error_event(self, exc, stage, role):
         if isinstance(exc, ModelCallError):
@@ -120,6 +121,7 @@ class Conversation:
         event = self._model_error_event(exc, stage=stage, role=role)
         self.data_error = True
         self.error = event
+        self.run_fatal_error = is_run_fatal_model_error(event.get("category"))
         self.negotiation_completed = True
         self.negotiation_result = "model_error"
         return event
@@ -128,6 +130,8 @@ class Conversation:
         error_event = self._model_error_event(exc, stage=stage, role="summary")
         event["summary_error"] = error_event
         self.data_error = True
+        if is_run_fatal_model_error(error_event.get("category")):
+            self.run_fatal_error = True
         if self.error is None:
             self.error = error_event
         return error_event
@@ -403,6 +407,8 @@ class Conversation:
             error_event = self._model_error_event(exc, stage="judge_confirmation", role="summary")
             event["confirmation_error"] = error_event
             self.data_error = True
+            if is_run_fatal_model_error(error_event.get("category")):
+                self.run_fatal_error = True
             if self.error is None:
                 self.error = error_event
             return current_label
@@ -461,6 +467,8 @@ class Conversation:
             raw_evaluation = ""
             summary_error = self._model_error_event(exc, stage="judge", role="summary")
             self.data_error = True
+            if is_run_fatal_model_error(summary_error.get("category")):
+                self.run_fatal_error = True
             if self.error is None:
                 self.error = summary_error
         else:
@@ -476,6 +484,11 @@ class Conversation:
             evaluation,
             normalize_warning=normalize_warning,
         )
+
+        if self.run_fatal_error:
+            self.negotiation_completed = True
+            self.negotiation_result = "model_error"
+            return True
         
         # Process the evaluation result
         if guarded_label == "ACCEPTANCE":
@@ -568,6 +581,12 @@ class Conversation:
             
             # Extract price offer using summary_model
             price_offer = self.extract_price_from_seller_message(seller_response)
+            if self.run_fatal_error:
+                self.completed_turns = turn_count - 1
+                self.negotiation_completed = True
+                self.negotiation_result = "model_error"
+                print(f"\n[Turn {turn_count}] Summary model hit a run-fatal error.")
+                break
             
             # If there's a price in this turn, update current price
             if price_offer is not None:
@@ -664,6 +683,7 @@ class Conversation:
                 "max_turns": self.max_turns
             },
             "data_error": self.data_error,
+            "run_fatal_error": self.run_fatal_error,
             "error": self.error,
         }
         

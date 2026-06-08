@@ -21,6 +21,8 @@ _LITELLM_COMPLETION = None
 
 RETRIABLE_ERROR_CATEGORIES = {"rate_limit", "timeout", "transient", "empty_response"}
 FATAL_ERROR_CATEGORIES = {"auth", "billing_or_quota", "model_unavailable", "bad_request"}
+RUN_FATAL_ERROR_CATEGORIES = {"auth", "billing_or_quota", "model_unavailable", "bad_request"}
+RUN_FATAL_EXIT_CODE = 86
 
 
 MODEL_ALIASES = {
@@ -127,6 +129,19 @@ def classify_model_error(exc: Exception) -> str:
     status_code = _status_code_from_exception(exc)
     text = f"{type(exc).__name__}: {exc}".lower()
 
+    if any(
+        marker in text
+        for marker in (
+            "key limit exceeded",
+            "total limit",
+            "credit limit",
+            "spend limit",
+            "usage limit",
+            "quota exceeded",
+        )
+    ):
+        return "billing_or_quota"
+
     if status_code in {401, 403} or any(
         marker in text
         for marker in (
@@ -193,6 +208,10 @@ def classify_model_error(exc: Exception) -> str:
 
 def is_retriable_model_error(category: str) -> bool:
     return category in RETRIABLE_ERROR_CATEGORIES
+
+
+def is_run_fatal_model_error(category: str) -> bool:
+    return category in RUN_FATAL_ERROR_CATEGORIES
 
 
 class LanguageModel:
