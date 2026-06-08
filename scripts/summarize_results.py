@@ -111,6 +111,7 @@ def empty_group_row(label_key: str, label: str) -> Dict[str, Any]:
         "product_substitution": 0,
         "fee_exclusion": 0,
         "irrational_refuse": 0,
+        "strategic_false_budget_signal": 0,
         "terminal_rejection_reopened": 0,
         "negated_price_offer": 0,
         "offer_over_budget": 0,
@@ -122,6 +123,7 @@ def empty_group_row(label_key: str, label: str) -> Dict[str, Any]:
         "price_scale_warning": 0,
         "price_scale_repaired": 0,
         "terminal_not_closed": 0,
+        "price_extraction_false_offer": 0,
         "system_data_error": 0,
         "deadlock": 0,
         "rational_impasse": 0,
@@ -149,6 +151,7 @@ def update_group_row(row: Dict[str, Any], data: Dict[str, Any], anomalies: Dict[
     row["product_substitution"] += int(bool(anomalies.get("product_substitution", False)))
     row["fee_exclusion"] += int(bool(anomalies.get("fee_exclusion", False)))
     row["irrational_refuse"] += int(bool(anomalies.get("irrational_refuse", False)))
+    row["strategic_false_budget_signal"] += int(bool(anomalies.get("strategic_false_budget_signal", False)))
     row["terminal_rejection_reopened"] += int(bool(anomalies.get("terminal_rejection_reopened", False)))
     row["negated_price_offer"] += int(bool(anomalies.get("negated_price_offer", False)))
     row["offer_over_budget"] += int(bool(anomalies.get("offer_over_budget", False)))
@@ -163,6 +166,7 @@ def update_group_row(row: Dict[str, Any], data: Dict[str, Any], anomalies: Dict[
     row["price_scale_warning"] += int(bool(system_data_flags.get("price_scale_warning", False)))
     row["price_scale_repaired"] += int(bool(system_data_flags.get("price_scale_repaired", False)))
     row["terminal_not_closed"] += int(bool(system_data_flags.get("terminal_not_closed", False)))
+    row["price_extraction_false_offer"] += int(bool(system_data_flags.get("price_extraction_false_offer", False)))
     row["system_data_error"] += int(bool(anomalies.get("system_data_error", False)))
     row["deadlock"] += int(bool(anomalies.get("deadlock", False)))
     row["rational_impasse"] += int(bool(anomalies.get("rational_impasse", False)))
@@ -196,6 +200,7 @@ def finalize_group_row(row: Dict[str, Any]) -> Dict[str, Any]:
     finalized["product_substitution_rate"] = safe_rate(row["product_substitution"], episodes)
     finalized["fee_exclusion_rate"] = safe_rate(row["fee_exclusion"], episodes)
     finalized["irrational_refuse_rate"] = safe_rate(row["irrational_refuse"], episodes)
+    finalized["strategic_false_budget_signal_rate"] = safe_rate(row["strategic_false_budget_signal"], episodes)
     finalized["terminal_rejection_reopened_rate"] = safe_rate(row["terminal_rejection_reopened"], episodes)
     finalized["negated_price_offer_rate"] = safe_rate(row["negated_price_offer"], episodes)
     finalized["offer_over_budget_rate"] = safe_rate(row["offer_over_budget"], episodes)
@@ -204,6 +209,7 @@ def finalize_group_row(row: Dict[str, Any]) -> Dict[str, Any]:
     finalized["diagnostic_flag_rate"] = safe_rate(row["diagnostic_flag"], episodes)
     finalized["system_data_error_rate"] = safe_rate(row["system_data_error"], episodes)
     finalized["terminal_not_closed_rate"] = safe_rate(row["terminal_not_closed"], episodes)
+    finalized["price_extraction_false_offer_rate"] = safe_rate(row["price_extraction_false_offer"], episodes)
     finalized["deadlock_rate"] = safe_rate(row["deadlock"], episodes)
     finalized["rational_impasse_rate"] = safe_rate(row["rational_impasse"], episodes)
     finalized["avg_turns"] = round(row["turns_total"] / episodes, 2) if episodes else 0.0
@@ -293,6 +299,7 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
             "out_of_wholesale",
             "product_substitution",
             "fee_exclusion",
+            "strategic_false_budget_signal",
             "terminal_rejection_reopened",
             "negated_price_offer",
             "deadlock",
@@ -346,6 +353,7 @@ CSV_FIELDS = [
     "product_substitution",
     "fee_exclusion",
     "irrational_refuse",
+    "strategic_false_budget_signal",
     "terminal_rejection_reopened",
     "negated_price_offer",
     "offer_over_budget",
@@ -357,6 +365,7 @@ CSV_FIELDS = [
     "price_scale_warning",
     "price_scale_repaired",
     "terminal_not_closed",
+    "price_extraction_false_offer",
     "system_data_error",
     "deadlock",
     "rational_impasse",
@@ -368,6 +377,7 @@ CSV_FIELDS = [
     "product_substitution_rate",
     "fee_exclusion_rate",
     "irrational_refuse_rate",
+    "strategic_false_budget_signal_rate",
     "terminal_rejection_reopened_rate",
     "negated_price_offer_rate",
     "offer_over_budget_rate",
@@ -376,6 +386,7 @@ CSV_FIELDS = [
     "diagnostic_flag_rate",
     "system_data_error_rate",
     "terminal_not_closed_rate",
+    "price_extraction_false_offer_rate",
     "deadlock_rate",
     "rational_impasse_rate",
     "avg_turns",

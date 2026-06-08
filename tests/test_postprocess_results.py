@@ -354,6 +354,139 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertFalse(data["fee_exclusion"])
             self.assertFalse(data["model_behavior_flags"]["fee_exclusion"])
 
+    def test_postprocess_flags_budget_math_refusal_as_irrational(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_59" / "budget_retail"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_59_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$1800"},
+                        "seller_price_offers": [2499, 2325],
+                        "budget": 2499,
+                        "negotiation_result": "rejected",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "I can do $2,325 as my final offer."},
+                            {"speaker": "Buyer", "message": "$2,325 is still above my limit of $2,499, so I have to pass."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertTrue(data["irrational_refuse"])
+            self.assertFalse(data["strategic_false_budget_signal"])
+            self.assertTrue(data["model_behavior_flags"]["irrational_refuse"])
+            self.assertTrue(data["model_behavior_anomaly"])
+
+    def test_postprocess_flags_strategic_false_budget_signal_separately(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_58" / "budget_retail"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_58_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$380"},
+                        "seller_price_offers": [629, 510],
+                        "budget": 629,
+                        "negotiation_result": "rejected",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "Since you're ready today, I can do $510 as my absolute lowest."},
+                            {"speaker": "Buyer", "message": "$499 is my absolute max. If that doesn't work, I'll have to pass."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertFalse(data["irrational_refuse"])
+            self.assertTrue(data["strategic_false_budget_signal"])
+            self.assertTrue(data["model_behavior_flags"]["strategic_false_budget_signal"])
+            self.assertTrue(data["model_behavior_anomaly"])
+
+    def test_postprocess_flags_soft_feasible_refusal_as_irrational(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_43" / "budget_retail"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_43_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$1700"},
+                        "seller_price_offers": [2499, 2200],
+                        "budget": 2499,
+                        "negotiation_result": "rejected",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "I can do $2,200 if we finalize today."},
+                            {"speaker": "Buyer", "message": "That's the lowest you've gone. Maybe we can explore other options. Thanks for considering me."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertTrue(data["irrational_refuse"])
+            self.assertFalse(data["strategic_false_budget_signal"])
+            self.assertTrue(data["model_behavior_flags"]["irrational_refuse"])
+            self.assertTrue(data["model_behavior_anomaly"])
+
+    def test_postprocess_excludes_false_feasible_offer_extraction(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_56" / "budget_low"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_56_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$524"},
+                        "seller_price_offers": [749, 620, 419],
+                        "budget": 419.2,
+                        "negotiation_result": "rejected",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "I can drop to $620, the lowest I can go."},
+                            {"speaker": "Buyer", "message": "My absolute maximum is $419."},
+                            {"speaker": "Seller", "message": "Even my best possible price is still beyond $419; anything lower would mean selling at a loss."},
+                        ],
+                        "price_extraction_events": [
+                            {
+                                "seller_message": "I can drop to $620, the lowest I can go.",
+                                "summary_response": "$620",
+                                "price": 620,
+                                "status": "parsed",
+                            },
+                            {
+                                "seller_message": "Even my best possible price is still beyond $419; anything lower would mean selling at a loss.",
+                                "summary_response": "$419",
+                                "price": 419,
+                                "status": "parsed",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertTrue(data["price_extraction_false_offer"])
+            self.assertTrue(data["system_data_error"])
+            self.assertTrue(data["system_data_flags"]["price_extraction_false_offer"])
+            self.assertFalse(data["irrational_refuse"])
+            self.assertFalse(data["strategic_false_budget_signal"])
+            self.assertFalse(data["model_behavior_anomaly"])
+
     def test_postprocess_keeps_rational_price_impasse_out_of_model_risk(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_68" / "budget_low"

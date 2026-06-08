@@ -88,6 +88,15 @@ POSITIVE_OFFER_NEAR_PRICE_PATTERN = re.compile(
     r"best|lowest|absolute lowest|floor|"
     r"can\s+(?:do|offer|make|meet|accept|hold)|"
     r"could\s+(?:do|offer|come down|meet|accept)|"
+    r"start(?:ing)?\s+(?:at|point)|"
+    r"how about|"
+    r"set it at|"
+    r"try|"
+    r"finalize at|"
+    r"does this work|"
+    r"what do you think|"
+    r"thoughts on|"
+    r"sound|"
     r"i(?:'|’| wi)?ll accept|"
     r"agree to|deal at|it's yours|it is yours|"
     r"for the (?:phone|laptop|tv|product|item)|"
@@ -220,6 +229,116 @@ def price_is_rejected_without_positive_offer(text, price):
     return False
 
 
+def price_is_boundary_without_positive_offer(text, price):
+    """Return True when a price is mentioned as a boundary, not an offer."""
+    value = str(text or "")
+
+    for match in CURRENCY_PRICE_PATTERN.finditer(value):
+        candidate = parse_price(match.group(1))
+        if not prices_match(candidate, price):
+            continue
+        start = max(0, match.start() - 80)
+        end = min(len(value), match.end() + 80)
+        window = value[start:end]
+        if re.search(r"\b(?:beyond|above|over|at least|minimum|threshold)\b.{0,30}\$", window, re.IGNORECASE):
+            return True
+        if message_has_positive_offer_for_price(value, price):
+            return False
+        if re.search(
+            r"\b("
+            r"below (?:my |our )?(?:cost|wholesale)|"
+            r"under (?:my |our )?(?:cost|wholesale)|"
+            r"anything lower|selling at a loss|take a loss|losing money"
+            r")\b",
+            window,
+            re.IGNORECASE,
+        ):
+            return True
+    return False
+
+
+def positive_seller_offer_events(data, max_price=None):
+    """Return parsed seller offer events that are genuine positive offers."""
+    events = []
+    for event in data.get("price_extraction_events", []) or []:
+        if not isinstance(event, dict):
+            continue
+        price = event.get("price")
+        if price is None:
+            continue
+        try:
+            price_value = float(price)
+        except (TypeError, ValueError):
+            continue
+        if max_price is not None and price_value > float(max_price):
+            continue
+        seller_message = event.get("seller_message")
+        if (
+            not price_is_rejected_without_positive_offer(seller_message, price_value)
+            and not price_is_boundary_without_positive_offer(seller_message, price_value)
+            and message_has_positive_offer_for_price(seller_message, price_value)
+        ):
+            events.append({**event, "price": price_value})
+    return events
+
+
+def result_has_false_feasible_offer_extraction(data):
+    """Return True when a rejected row only looks feasible due to price extraction."""
+    if data.get("negotiation_result") != "rejected":
+        return False
+    offers = data.get("seller_price_offers")
+    if not isinstance(offers, list) or not offers or "budget" not in data:
+        return False
+    try:
+        budget = float(data["budget"])
+        last_offer = float(offers[-1])
+    except (TypeError, ValueError):
+        return False
+    if last_offer >= budget:
+        return False
+
+    matched_index = None
+    matched_event = None
+    price_events = data.get("price_extraction_events", []) or []
+    for index in range(len(price_events) - 1, -1, -1):
+        event = price_events[index]
+        if not isinstance(event, dict):
+            continue
+        price = event.get("price")
+        try:
+            price_value = float(price)
+        except (TypeError, ValueError):
+            continue
+        if prices_match(price_value, last_offer):
+            matched_index = index
+            matched_event = event
+            break
+
+    if matched_event is None:
+        return False
+
+    seller_message = matched_event.get("seller_message")
+    rejected_or_boundary = (
+        price_is_rejected_without_positive_offer(seller_message, last_offer)
+        or price_is_boundary_without_positive_offer(seller_message, last_offer)
+    )
+    if not rejected_or_boundary:
+        return False
+
+    earlier_events = price_events[:matched_index]
+    for event in reversed(earlier_events):
+        if not isinstance(event, dict):
+            continue
+        price = event.get("price")
+        try:
+            price_value = float(price)
+        except (TypeError, ValueError):
+            continue
+        if price_value <= budget and message_has_positive_offer_for_price(event.get("seller_message"), price_value):
+            return False
+    return True
+
+
 def parse_csv(value):
     if value is None:
         return None
@@ -317,6 +436,7 @@ def result_has_system_data_error(data):
         or data.get("price_scale_warning", False)
         or data.get("terminal_not_closed", False)
         or result_has_terminal_not_closed(data)
+        or result_has_false_feasible_offer_extraction(data)
     )
 
 

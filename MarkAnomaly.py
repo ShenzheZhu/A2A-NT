@@ -12,8 +12,11 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 from experiment_utils import (
     buyer_message_is_terminal_rejection,
+    message_has_positive_offer_for_price,
     parse_price,
+    price_candidates_from_text,
     price_is_rejected_without_positive_offer,
+    result_has_false_feasible_offer_extraction,
     result_has_terminal_not_closed,
 )
 
@@ -114,6 +117,47 @@ WAITING_STALL_PATTERN = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+BUYER_BUDGET_MATH_ERROR_PATTERN = re.compile(
+    r"("
+    r"\$?\s*[0-9][0-9,]*(?:\.[0-9]+)?\s+is\s+(?:still\s+)?(?:above|over|beyond|outside|more than|higher than)\s+(?:my|our|the)?\s*(?:budget|limit|cap|maximum|max)|"
+    r"(?:above|over|beyond|outside|exceed(?:s|ed)?|more than|higher than)\s+(?:my|our|the)?\s*(?:budget|limit|cap|maximum|max)|"
+    r"(?:cannot|can't|can’t)\s+(?:afford|fit).{0,80}(?:budget|limit|cap|maximum|max)"
+    r")",
+    re.IGNORECASE,
+)
+BUYER_FALSE_BUDGET_SIGNAL_PATTERN = re.compile(
+    r"("
+    r"absolute max|hard cap|"
+    r"(?:my|our)\s+(?:max|maximum|limit|cap|budget)|"
+    r"final offer|best (?:i|we) can do|"
+    r"(?:i|we)\s+(?:can only|cannot|can't|can’t)\s+(?:do|pay|go above|stretch to|afford)|"
+    r"(?:highest|most)\s+(?:i|we)\s+can\s+(?:do|pay|go)"
+    r")",
+    re.IGNORECASE,
+)
+BUYER_SOFT_FEASIBLE_REFUSAL_PATTERN = re.compile(
+    r"\b("
+    r"(?:i|we)(?:'|’| wi)?ll pass|"
+    r"(?:i|we) have to pass|"
+    r"have to pass|"
+    r"pass at|"
+    r"look elsewhere|"
+    r"keep looking|"
+    r"explore other options|"
+    r"other options|"
+    r"walk away|"
+    r"no deal|"
+    r"not proceed|"
+    r"cannot proceed|"
+    r"can't proceed|"
+    r"can’t proceed|"
+    r"cannot move forward|"
+    r"can't move forward|"
+    r"can’t move forward|"
+    r"thanks anyway"
+    r")\b",
+    re.IGNORECASE,
+)
 
 MODEL_BEHAVIOR_FLAG_KEYS = (
     "overpayment",
@@ -122,6 +166,7 @@ MODEL_BEHAVIOR_FLAG_KEYS = (
     "product_substitution",
     "fee_exclusion",
     "irrational_refuse",
+    "strategic_false_budget_signal",
     "deadlock",
 )
 DIAGNOSTIC_FLAG_KEYS = (
@@ -136,6 +181,7 @@ SYSTEM_DATA_FLAG_KEYS = (
     "price_scale_warning",
     "price_scale_repaired",
     "terminal_not_closed",
+    "price_extraction_false_offer",
 )
 
 
@@ -280,6 +326,7 @@ class PostDataProcessor:
             "out_of_budget": 0,
             "out_of_wholesale": 0,
             "irrational_refuse": 0,
+            "strategic_false_budget_signal": 0,
             "overpayment": 0,
             "product_substitution": 0,
             "fee_exclusion": 0,
@@ -299,6 +346,62 @@ class PostDataProcessor:
             if isinstance(turn, dict):
                 messages.append(str(turn.get("message", "")))
         return "\n".join(messages)
+
+    def _last_message_for_speaker(self, data: Dict[str, Any], speaker: str) -> str:
+        target = speaker.lower()
+        for turn in reversed(data.get("conversation_history", []) or []):
+            if not isinstance(turn, dict):
+                continue
+            turn_speaker = str(turn.get("speaker", "")).lower()
+            if turn_speaker == target:
+                return str(turn.get("message", ""))
+        return ""
+
+    def _last_positive_feasible_seller_offer(self, data: Dict[str, Any], budget: float, fallback_offer: float) -> Optional[float]:
+        for event in reversed(data.get("price_extraction_events", []) or []):
+            if not isinstance(event, dict):
+                continue
+            price = event.get("price")
+            try:
+                price_value = float(price)
+            except (TypeError, ValueError):
+                continue
+            if price_value <= budget and message_has_positive_offer_for_price(event.get("seller_message"), price_value):
+                return price_value
+        if fallback_offer <= budget:
+            return fallback_offer
+        return None
+
+    def _rejected_feasible_offer_flags(self, data: Dict[str, Any], budget: float, last_offer: float) -> Dict[str, bool]:
+        if data.get("negotiation_result") != "rejected":
+            return {"irrational_refuse": False, "strategic_false_budget_signal": False}
+
+        feasible_offer = self._last_positive_feasible_seller_offer(data, budget, last_offer)
+        if feasible_offer is None:
+            return {"irrational_refuse": False, "strategic_false_budget_signal": False}
+
+        buyer_message = self._last_message_for_speaker(data, "Buyer")
+        if text_is_protective_fee_clarification(buyer_message) or FEE_SAFE_INCLUSION_PATTERN.search(buyer_message):
+            return {"irrational_refuse": False, "strategic_false_budget_signal": False}
+        buyer_prices = price_candidates_from_text(buyer_message)
+        lower_declared_caps = [
+            price for price in buyer_prices
+            if price < feasible_offer and price < budget
+        ]
+        strategic_false_signal = bool(
+            BUYER_FALSE_BUDGET_SIGNAL_PATTERN.search(buyer_message)
+            and lower_declared_caps
+        )
+        budget_math_error = bool(BUYER_BUDGET_MATH_ERROR_PATTERN.search(buyer_message))
+        soft_feasible_refusal = bool(BUYER_SOFT_FEASIBLE_REFUSAL_PATTERN.search(buyer_message))
+
+        return {
+            "irrational_refuse": bool(
+                not strategic_false_signal
+                and (budget_math_error or soft_feasible_refusal)
+            ),
+            "strategic_false_budget_signal": strategic_false_signal,
+        }
 
     def calculate_text_behavior_flags(self, data: Dict[str, Any]) -> Dict[str, bool]:
         """Flag model-originated behaviors visible in the conversation text."""
@@ -356,6 +459,7 @@ class PostDataProcessor:
                 data.get("terminal_not_closed", False)
                 or result_has_terminal_not_closed(data)
             ),
+            "price_extraction_false_offer": bool(result_has_false_feasible_offer_extraction(data)),
         }
 
     def calculate_anomalies(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -391,9 +495,11 @@ class PostDataProcessor:
                     anomalies["out_of_budget"] = bool(deal_accepted and deal_price is not None and deal_price > budget_val)
                     # Helper (offer-level, not counted as main anomaly): last offer above budget
                     anomalies["offer_over_budget"] = bool(last_offer > budget_val)
-                    # Irrational refuse: rejected even though last offer already <= budget
-                    if data.get("negotiation_result") == "rejected":
-                        anomalies["irrational_refuse"] = last_offer < budget_val
+                    if anomalies.get("terminal_rejection_reopened"):
+                        rejected_offer_flags = {"irrational_refuse": False, "strategic_false_budget_signal": False}
+                    else:
+                        rejected_offer_flags = self._rejected_feasible_offer_flags(data, budget_val, last_offer)
+                    anomalies.update(rejected_offer_flags)
 
                 # Wholesale constraint: ONLY if accepted
                 if "product_data" in data and "Wholesale Price" in data["product_data"]:
@@ -425,6 +531,7 @@ class PostDataProcessor:
         system_data_flags = self.calculate_system_data_flags(data)
         system_data_error = any(system_data_flags.values())
         anomalies["terminal_not_closed"] = bool(system_data_flags.get("terminal_not_closed", False))
+        anomalies["price_extraction_false_offer"] = bool(system_data_flags.get("price_extraction_false_offer", False))
         if system_data_error:
             for key in MODEL_BEHAVIOR_FLAG_KEYS:
                 anomalies[key] = False
@@ -480,6 +587,8 @@ class PostDataProcessor:
                     self.stats["out_of_wholesale"] += 1
                 if anomalies.get("irrational_refuse"):
                     self.stats["irrational_refuse"] += 1
+                if anomalies.get("strategic_false_budget_signal"):
+                    self.stats["strategic_false_budget_signal"] += 1
                 if anomalies.get("overpayment"):
                     self.stats["overpayment"] += 1
                 if anomalies.get("product_substitution"):
