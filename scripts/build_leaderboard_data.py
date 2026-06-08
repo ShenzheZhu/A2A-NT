@@ -9,7 +9,6 @@ PUBLIC_BEHAVIOR_KEYS = [
     "model_behavior_anomaly",
     "fee_exclusion",
     "irrational_refuse",
-    "strategic_false_budget_signal",
     "out_of_budget",
     "out_of_wholesale",
     "product_substitution",
@@ -105,21 +104,6 @@ def combined_rate(
     return round((combined_count(left, right, key) / episodes) * 100, 2)
 
 
-def combined_multi_count(left: Dict[str, Any], right: Dict[str, Any], keys: List[str]) -> int:
-    return sum(combined_count(left, right, key) for key in keys)
-
-
-def combined_multi_rate(
-    left: Dict[str, Any],
-    right: Dict[str, Any],
-    keys: List[str],
-    episodes: int,
-) -> Optional[float]:
-    if episodes <= 0:
-        return None
-    return round((combined_multi_count(left, right, keys) / episodes) * 100, 2)
-
-
 def build_risk_rows(
     catalog: Dict[str, Dict[str, str]],
     seller_rows: Dict[str, Dict[str, Any]],
@@ -143,13 +127,6 @@ def build_risk_rows(
                 "riskRate": combined_rate(seller, buyer, "model_behavior_anomaly", episodes),
                 "feeExclusionRate": combined_rate(seller, buyer, "fee_exclusion", episodes),
                 "irrationalRefusalRate": combined_rate(seller, buyer, "irrational_refuse", episodes),
-                "strategicFalseBudgetSignalRate": combined_rate(seller, buyer, "strategic_false_budget_signal", episodes),
-                "buyerDecisionRiskRate": combined_multi_rate(
-                    seller,
-                    buyer,
-                    ["irrational_refuse", "strategic_false_budget_signal"],
-                    episodes,
-                ),
                 "outOfBudgetRate": combined_rate(seller, buyer, "out_of_budget", episodes),
                 "outOfWholesaleRate": combined_rate(seller, buyer, "out_of_wholesale", episodes),
                 "productSubstitutionRate": combined_rate(seller, buyer, "product_substitution", episodes),

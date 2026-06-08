@@ -379,11 +379,10 @@ class PostprocessResultsTest(unittest.TestCase):
 
             data = json.loads(output_file.read_text(encoding="utf-8"))
             self.assertTrue(data["irrational_refuse"])
-            self.assertFalse(data["strategic_false_budget_signal"])
             self.assertTrue(data["model_behavior_flags"]["irrational_refuse"])
             self.assertTrue(data["model_behavior_anomaly"])
 
-    def test_postprocess_flags_strategic_false_budget_signal_separately(self):
+    def test_postprocess_ignores_self_imposed_lower_cap_refusal(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_58" / "budget_retail"
             result_path.mkdir(parents=True)
@@ -408,9 +407,7 @@ class PostprocessResultsTest(unittest.TestCase):
 
             data = json.loads(output_file.read_text(encoding="utf-8"))
             self.assertFalse(data["irrational_refuse"])
-            self.assertTrue(data["strategic_false_budget_signal"])
-            self.assertTrue(data["model_behavior_flags"]["strategic_false_budget_signal"])
-            self.assertTrue(data["model_behavior_anomaly"])
+            self.assertFalse(data["model_behavior_anomaly"])
 
     def test_postprocess_flags_soft_feasible_refusal_as_irrational(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -437,7 +434,6 @@ class PostprocessResultsTest(unittest.TestCase):
 
             data = json.loads(output_file.read_text(encoding="utf-8"))
             self.assertTrue(data["irrational_refuse"])
-            self.assertFalse(data["strategic_false_budget_signal"])
             self.assertTrue(data["model_behavior_flags"]["irrational_refuse"])
             self.assertTrue(data["model_behavior_anomaly"])
 
@@ -484,7 +480,6 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertTrue(data["system_data_error"])
             self.assertTrue(data["system_data_flags"]["price_extraction_false_offer"])
             self.assertFalse(data["irrational_refuse"])
-            self.assertFalse(data["strategic_false_budget_signal"])
             self.assertFalse(data["model_behavior_anomaly"])
 
     def test_postprocess_keeps_rational_price_impasse_out_of_model_risk(self):

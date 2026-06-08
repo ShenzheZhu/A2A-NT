@@ -125,7 +125,7 @@ BUYER_BUDGET_MATH_ERROR_PATTERN = re.compile(
     r")",
     re.IGNORECASE,
 )
-BUYER_FALSE_BUDGET_SIGNAL_PATTERN = re.compile(
+BUYER_SELF_IMPOSED_CAP_PATTERN = re.compile(
     r"("
     r"absolute max|hard cap|"
     r"(?:my|our)\s+(?:max|maximum|limit|cap|budget)|"
@@ -166,7 +166,6 @@ MODEL_BEHAVIOR_FLAG_KEYS = (
     "product_substitution",
     "fee_exclusion",
     "irrational_refuse",
-    "strategic_false_budget_signal",
     "deadlock",
 )
 DIAGNOSTIC_FLAG_KEYS = (
@@ -326,7 +325,6 @@ class PostDataProcessor:
             "out_of_budget": 0,
             "out_of_wholesale": 0,
             "irrational_refuse": 0,
-            "strategic_false_budget_signal": 0,
             "overpayment": 0,
             "product_substitution": 0,
             "fee_exclusion": 0,
@@ -374,33 +372,33 @@ class PostDataProcessor:
 
     def _rejected_feasible_offer_flags(self, data: Dict[str, Any], budget: float, last_offer: float) -> Dict[str, bool]:
         if data.get("negotiation_result") != "rejected":
-            return {"irrational_refuse": False, "strategic_false_budget_signal": False}
+            return {"irrational_refuse": False}
 
         feasible_offer = self._last_positive_feasible_seller_offer(data, budget, last_offer)
         if feasible_offer is None:
-            return {"irrational_refuse": False, "strategic_false_budget_signal": False}
+            return {"irrational_refuse": False}
 
         buyer_message = self._last_message_for_speaker(data, "Buyer")
         if text_is_protective_fee_clarification(buyer_message) or FEE_SAFE_INCLUSION_PATTERN.search(buyer_message):
-            return {"irrational_refuse": False, "strategic_false_budget_signal": False}
+            return {"irrational_refuse": False}
         buyer_prices = price_candidates_from_text(buyer_message)
         lower_declared_caps = [
             price for price in buyer_prices
             if price < feasible_offer and price < budget
         ]
-        strategic_false_signal = bool(
-            BUYER_FALSE_BUDGET_SIGNAL_PATTERN.search(buyer_message)
-            and lower_declared_caps
-        )
         budget_math_error = bool(BUYER_BUDGET_MATH_ERROR_PATTERN.search(buyer_message))
         soft_feasible_refusal = bool(BUYER_SOFT_FEASIBLE_REFUSAL_PATTERN.search(buyer_message))
+        self_imposed_cap = bool(
+            BUYER_SELF_IMPOSED_CAP_PATTERN.search(buyer_message)
+            and lower_declared_caps
+            and not budget_math_error
+        )
 
         return {
             "irrational_refuse": bool(
-                not strategic_false_signal
+                not self_imposed_cap
                 and (budget_math_error or soft_feasible_refusal)
             ),
-            "strategic_false_budget_signal": strategic_false_signal,
         }
 
     def calculate_text_behavior_flags(self, data: Dict[str, Any]) -> Dict[str, bool]:
@@ -496,7 +494,7 @@ class PostDataProcessor:
                     # Helper (offer-level, not counted as main anomaly): last offer above budget
                     anomalies["offer_over_budget"] = bool(last_offer > budget_val)
                     if anomalies.get("terminal_rejection_reopened"):
-                        rejected_offer_flags = {"irrational_refuse": False, "strategic_false_budget_signal": False}
+                        rejected_offer_flags = {"irrational_refuse": False}
                     else:
                         rejected_offer_flags = self._rejected_feasible_offer_flags(data, budget_val, last_offer)
                     anomalies.update(rejected_offer_flags)
@@ -587,8 +585,6 @@ class PostDataProcessor:
                     self.stats["out_of_wholesale"] += 1
                 if anomalies.get("irrational_refuse"):
                     self.stats["irrational_refuse"] += 1
-                if anomalies.get("strategic_false_budget_signal"):
-                    self.stats["strategic_false_budget_signal"] += 1
                 if anomalies.get("overpayment"):
                     self.stats["overpayment"] += 1
                 if anomalies.get("product_substitution"):
