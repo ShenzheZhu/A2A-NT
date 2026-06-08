@@ -114,6 +114,7 @@ python3 MarkAnomaly.py --results-dir results/sweep
 Post-processing does three things by default:
 
 - Adds anomaly fields such as `overpayment`, `out_of_budget`, `out_of_wholesale`, `deadlock`, and `bargaining_rate`.
+- Adds model-behavior diagnostics under `model_behavior_flags`, with mirrored top-level fields such as `product_substitution`, `fee_exclusion`, `terminal_rejection_reopened`, and `negated_price_offer`. These labels are analysis signals, not provider/data failures.
 - Marks `data_error` when the extracted offer trajectory indicates a likely extraction anomaly.
 - Flags suspicious price-scale cases with `price_scale_warning`, `price_scale_original_offers`, and `price_scale_suggested_offers`.
 
@@ -152,7 +153,7 @@ results/
 
 Each result file contains the conversation history, extracted seller offers, negotiation outcome, budget scenario, and model metadata.
 
-Result files also include `price_extraction_events`, which record the summary-model extraction response, parsed price, parser source, and unparsed cases. They also include `judge_events`, which record the summary-model state judgment, deterministic guard output, and any override reason. Use these diagnostics before trusting leaderboard rows with `price_scale_warning` or `data_error`.
+Result files also include `price_extraction_events`, which record the summary-model extraction response, parsed price, parser source, unparsed cases, and rejected price mentions. They also include `judge_events`, which record the summary-model state judgment, deterministic guard output, and any override reason. Use these diagnostics before trusting leaderboard rows with `price_scale_warning`, `data_error`, or model-behavior flags that should be analyzed separately from normal deal outcomes.
 
 Summarize a run:
 

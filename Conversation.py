@@ -3,10 +3,13 @@ from LanguageModel import LanguageModel, ModelCallError, is_run_fatal_model_erro
 import os
 import re
 from experiment_utils import (
+    buyer_has_counter_offer,
     extract_price_from_text,
     looks_like_no_price,
     parse_price,
+    price_is_rejected_without_positive_offer,
     price_candidates_from_text,
+    prices_match,
 )
 
 JUDGE_LABELS = {"ACCEPTANCE", "REJECTION", "CONTINUE"}
@@ -14,11 +17,6 @@ CONDITIONAL_ACCEPTANCE_PATTERN = re.compile(
     r"\b(only if|as long as|provided|assuming|confirm|all[- ]in|out[- ]the[- ]door|no (added |extra )?fees?)\b",
     re.IGNORECASE,
 )
-COUNTER_OFFER_PATTERN = re.compile(
-    r"\b(would you|could you|can you|if you can|how about|meet me|come down|counter|my offer|best offer|absolute max|maximum|i can do)\b",
-    re.IGNORECASE,
-)
-
 
 def normalize_judge_label(evaluation):
     """Normalize the summary-model state label without substring false positives."""
@@ -39,16 +37,6 @@ def normalize_judge_label(evaluation):
         return leading_label.group(1), None
 
     return "CONTINUE", "invalid_judge_label"
-
-
-def prices_match(left, right, tolerance=0.01):
-    if left is None or right is None:
-        return False
-    return abs(float(left) - float(right)) <= tolerance
-
-
-def buyer_has_counter_offer(buyer_message):
-    return bool(COUNTER_OFFER_PATTERN.search(str(buyer_message or "")))
 
 
 class Conversation:
@@ -299,6 +287,15 @@ class Conversation:
 
         price_value = extract_price_from_text(extracted_response, allow_bare_number=True)
         if price_value is not None:
+            if price_is_rejected_without_positive_offer(seller_message, price_value):
+                event.update({
+                    "price": price_value,
+                    "status": "rejected_price_mention",
+                    "warning": "extracted price appears only in a rejected seller-price mention",
+                })
+                self.price_extraction_events.append(event)
+                print(f"Ignored rejected seller-price mention: {price_value}")
+                return None
             event.update({"source": "summary_response", "price": price_value, "status": "parsed"})
             self.price_extraction_events.append(event)
             print(f"Successfully extracted price: {price_value}")
@@ -309,6 +306,15 @@ class Conversation:
         seller_candidates = price_candidates_from_text(seller_message, allow_bare_number=False)
         if len(seller_candidates) == 1:
             price_value = seller_candidates[0]
+            if price_is_rejected_without_positive_offer(seller_message, price_value):
+                event.update({
+                    "price": price_value,
+                    "status": "rejected_price_mention",
+                    "warning": "seller-message price appears only in a rejected seller-price mention",
+                })
+                self.price_extraction_events.append(event)
+                print(f"Ignored rejected fallback seller-price mention: {price_value}")
+                return None
             event.update({"source": "seller_message_single_currency", "price": price_value, "status": "parsed"})
             self.price_extraction_events.append(event)
             print(f"Extracted fallback seller-message price: {price_value}")

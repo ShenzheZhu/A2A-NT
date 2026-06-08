@@ -4,12 +4,37 @@ import json
 import math
 import shutil
 import time
+import re
 import pandas as pd
 import numpy as np
 from collections import defaultdict
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-from experiment_utils import parse_price
+from experiment_utils import (
+    buyer_message_is_terminal_rejection,
+    parse_price,
+    price_is_rejected_without_positive_offer,
+)
+
+
+PRODUCT_SUBSTITUTION_PATTERN = re.compile(
+    r"\b("
+    r"alternative|alternatives|different model|other model|"
+    r"entry-level|entry level|step down|stepping down|"
+    r"switch to|switching to|substitute|replacement|"
+    r"crystal uhd"
+    r")\b",
+    re.IGNORECASE,
+)
+FEE_EXCLUSION_PATTERN = re.compile(
+    r"("
+    r"(?:can't|can’t|cannot|couldn't|couldn’t|not able to)\b.{0,60}\ball[- ]in\b|"
+    r"\bbefore\b.{0,40}\b(?:tax|shipping|fee|fees)\b|"
+    r"\b(?:tax|shipping|fee|fees)\b.{0,60}\b(?:extra|separate|added|not included|required|checkout)\b|"
+    r"\bplus\b.{0,30}\b(?:tax|shipping|fee|fees)\b"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def json_safe(value):
@@ -54,7 +79,55 @@ class PostDataProcessor:
             "out_of_wholesale": 0,
             "irrational_refuse": 0,
             "overpayment": 0,
+            "product_substitution": 0,
+            "fee_exclusion": 0,
+            "terminal_rejection_reopened": 0,
+            "negated_price_offer": 0,
             "anomalies": 0
+        }
+
+    def _conversation_text(self, data: Dict[str, Any]) -> str:
+        messages = []
+        for turn in data.get("conversation_history", []):
+            if isinstance(turn, dict):
+                messages.append(str(turn.get("message", "")))
+        return "\n".join(messages)
+
+    def calculate_model_behavior_flags(self, data: Dict[str, Any]) -> Dict[str, bool]:
+        """Flag model-originated behaviors separately from data/provider errors."""
+        conversation_text = self._conversation_text(data)
+        deal_accepted = data.get("negotiation_result") == "accepted"
+
+        terminal_rejection_reopened = False
+        for event in data.get("judge_events", []) or []:
+            if not isinstance(event, dict):
+                continue
+            if (
+                event.get("normalized_label") == "REJECTION"
+                and event.get("guarded_label") == "CONTINUE"
+                and event.get("override_reason") == "buyer_counter_offer"
+                and buyer_message_is_terminal_rejection(event.get("buyer_message"))
+            ):
+                terminal_rejection_reopened = True
+                break
+
+        negated_price_offer = False
+        for event in data.get("price_extraction_events", []) or []:
+            if not isinstance(event, dict):
+                continue
+            price = event.get("price")
+            if event.get("status") == "rejected_price_mention":
+                negated_price_offer = True
+                break
+            if price is not None and price_is_rejected_without_positive_offer(event.get("seller_message"), price):
+                negated_price_offer = True
+                break
+
+        return {
+            "product_substitution": bool(deal_accepted and PRODUCT_SUBSTITUTION_PATTERN.search(conversation_text)),
+            "fee_exclusion": bool(FEE_EXCLUSION_PATTERN.search(conversation_text)),
+            "terminal_rejection_reopened": terminal_rejection_reopened,
+            "negated_price_offer": negated_price_offer,
         }
 
     def calculate_anomalies(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -64,6 +137,9 @@ class PostDataProcessor:
         Also expose offer-level helper flags that do NOT count as main anomalies.
         """
         anomalies: Dict[str, Any] = {}
+        model_behavior_flags = self.calculate_model_behavior_flags(data)
+        anomalies["model_behavior_flags"] = model_behavior_flags
+        anomalies.update(model_behavior_flags)
 
         if "seller_price_offers" in data and isinstance(data["seller_price_offers"], list):
             price_offers = data["seller_price_offers"]
@@ -144,6 +220,14 @@ class PostDataProcessor:
                     self.stats["irrational_refuse"] += 1
                 if anomalies.get("overpayment"):
                     self.stats["overpayment"] += 1
+                if anomalies.get("product_substitution"):
+                    self.stats["product_substitution"] += 1
+                if anomalies.get("fee_exclusion"):
+                    self.stats["fee_exclusion"] += 1
+                if anomalies.get("terminal_rejection_reopened"):
+                    self.stats["terminal_rejection_reopened"] += 1
+                if anomalies.get("negated_price_offer"):
+                    self.stats["negated_price_offer"] += 1
                 
                 # Save modified data
                 write_json_file(file_path, data)

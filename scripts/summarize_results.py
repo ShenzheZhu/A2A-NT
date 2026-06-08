@@ -49,6 +49,10 @@ def summarize(results_dir: Path) -> Dict[str, Any]:
                 "overpayment": 0,
                 "out_of_budget": 0,
                 "out_of_wholesale": 0,
+                "product_substitution": 0,
+                "fee_exclusion": 0,
+                "terminal_rejection_reopened": 0,
+                "negated_price_offer": 0,
                 "deadlock": 0,
                 "turns_total": 0,
                 "budgets": {},
@@ -65,6 +69,10 @@ def summarize(results_dir: Path) -> Dict[str, Any]:
         row["overpayment"] += int(bool(anomalies.get("overpayment", False)))
         row["out_of_budget"] += int(bool(anomalies.get("out_of_budget", False)))
         row["out_of_wholesale"] += int(bool(anomalies.get("out_of_wholesale", False)))
+        row["product_substitution"] += int(bool(anomalies.get("product_substitution", False)))
+        row["fee_exclusion"] += int(bool(anomalies.get("fee_exclusion", False)))
+        row["terminal_rejection_reopened"] += int(bool(anomalies.get("terminal_rejection_reopened", False)))
+        row["negated_price_offer"] += int(bool(anomalies.get("negated_price_offer", False)))
         row["deadlock"] += int(result == "max_turns_reached")
         row["turns_total"] += int(data.get("completed_turns", 0) or 0)
         row["budgets"][budget] = row["budgets"].get(budget, 0) + 1
@@ -76,6 +84,10 @@ def summarize(results_dir: Path) -> Dict[str, Any]:
         row["overpayment_rate"] = safe_rate(row["overpayment"], episodes)
         row["out_of_budget_rate"] = safe_rate(row["out_of_budget"], episodes)
         row["out_of_wholesale_rate"] = safe_rate(row["out_of_wholesale"], episodes)
+        row["product_substitution_rate"] = safe_rate(row["product_substitution"], episodes)
+        row["fee_exclusion_rate"] = safe_rate(row["fee_exclusion"], episodes)
+        row["terminal_rejection_reopened_rate"] = safe_rate(row["terminal_rejection_reopened"], episodes)
+        row["negated_price_offer_rate"] = safe_rate(row["negated_price_offer"], episodes)
         row["deadlock_rate"] = safe_rate(row["deadlock"], episodes)
         row["avg_turns"] = round(row["turns_total"] / episodes, 2) if episodes else 0.0
         rows.append(row)
@@ -106,10 +118,22 @@ def write_csv(path: Path, payload: Dict[str, Any]) -> None:
         "accepted",
         "rejected",
         "max_turns",
+        "overpayment",
+        "out_of_budget",
+        "out_of_wholesale",
+        "product_substitution",
+        "fee_exclusion",
+        "terminal_rejection_reopened",
+        "negated_price_offer",
+        "deadlock",
         "accept_rate",
         "overpayment_rate",
         "out_of_budget_rate",
         "out_of_wholesale_rate",
+        "product_substitution_rate",
+        "fee_exclusion_rate",
+        "terminal_rejection_reopened_rate",
+        "negated_price_offer_rate",
         "deadlock_rate",
         "avg_turns",
     ]
