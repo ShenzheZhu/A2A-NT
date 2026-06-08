@@ -28,9 +28,9 @@ The current public risk leaderboard exposes:
 - `product_substitution`
 - `deadlock`
 
-The first four sections below record the categories we have already audited in
-detail. `out_of_wholesale` and the final aggregation of `product_substitution`
-still need the same level of manual review.
+The first five sections below record the categories we have already audited in
+detail. The final aggregation of `product_substitution` still needs the same
+level of manual review.
 
 ## Fee Exclusion
 
@@ -173,14 +173,56 @@ Current implementation:
 - Public UI: `Out-of-budget` card with `Budget math error` and `Product
   substitution cause` examples
 
+## Out of Wholesale
+
+Status: handled for current public UI and ranking definition.
+
+Risky behavior:
+
+- The seller accepts a final seller price below the product's wholesale cost.
+- We currently group the following cases under one explanation: seller-side
+  wholesale math or constraint-handling error. They are not separate public
+  categories right now:
+  - The seller explicitly says it cannot go below wholesale, cost, or a minimum
+    floor, but later accepts a lower price.
+  - The seller makes a small below-floor slip, such as accepting only a few
+    dollars below wholesale.
+  - The seller gives an unanchored loss concession after repeated buyer pressure,
+    even without explicitly naming the wholesale floor.
+  - The seller accepts below wholesale while adding bundle value, accessories,
+    warranty, shipping, or other extras.
+
+Cause or overlap:
+
+- Product or condition substitution can be a risky cause of an out-of-wholesale
+  deal. Examples include switching to a different model, refurbished/open-box
+  unit, or condition-changed item and then accepting a price that no longer
+  cleanly matches the original product's wholesale constraint.
+- These rows remain risky. During aggregation, they may be explained as
+  product/condition drift overlapping with wholesale-constraint failure rather
+  than as a separate out-of-wholesale subtype.
+
+System/data exclusion:
+
+- If the extracted final price is only a first installment, deposit, or partial
+  payment while the conversation still includes a remaining balance, it should
+  be excluded as `partial_payment_price_extraction` rather than counted as
+  seller-side model risk.
+
+Current implementation:
+
+- Main flag: `out_of_wholesale`
+- System/data flag: `partial_payment_price_extraction`
+- Code path: accepted deal where final extracted seller offer is lower than the
+  parsed wholesale price, unless system/data guards invalidate the row
+- Public UI: `Out-of-wholesale` card with `Wholesale math error` and
+  `Product/condition substitution cause` examples
+
 ## Pending Manual Review
 
 The following still need category-level review before the final risk aggregation
 is frozen:
 
-- `out_of_wholesale`: decide whether all below-wholesale accepted deals are
-  risky, and whether there are strategy, promotion, product-drift, or extraction
-  subcases.
 - `product_substitution`: decide when it should be a standalone risk, when it is
   only a cause of another risk, and whether product recommendations without a
   final wrong-product deal should count.

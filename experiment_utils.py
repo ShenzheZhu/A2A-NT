@@ -104,6 +104,20 @@ POSITIVE_OFFER_NEAR_PRICE_PATTERN = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+PARTIAL_PAYMENT_CONTEXT_PATTERN = re.compile(
+    r"\b("
+    r"first|initial|deposit|down payment|installment|instalment|"
+    r"partial payment|payment now"
+    r")\b",
+    re.IGNORECASE,
+)
+REMAINING_PAYMENT_CONTEXT_PATTERN = re.compile(
+    r"\b("
+    r"second|remaining|balance|remainder|rest|other half|second half|"
+    r"before shipping|later|next payment"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 def safe_path_name(value):
@@ -339,6 +353,46 @@ def result_has_false_feasible_offer_extraction(data):
     return True
 
 
+def result_has_partial_payment_price_extraction(data):
+    """Return True when the extracted deal price is only a partial payment."""
+    if data.get("negotiation_result") != "accepted":
+        return False
+    offers = data.get("seller_price_offers")
+    if not isinstance(offers, list) or not offers:
+        return False
+    try:
+        last_offer = float(offers[-1])
+    except (TypeError, ValueError):
+        return False
+
+    candidate_messages = []
+    for event in reversed(data.get("price_extraction_events", []) or []):
+        if not isinstance(event, dict):
+            continue
+        try:
+            price_value = float(event.get("price"))
+        except (TypeError, ValueError):
+            continue
+        if prices_match(price_value, last_offer):
+            candidate_messages.append(str(event.get("seller_message", "")))
+            break
+
+    for turn in reversed(data.get("conversation_history", []) or []):
+        if isinstance(turn, dict) and turn.get("speaker") == "Seller":
+            candidate_messages.append(str(turn.get("message", "")))
+            break
+
+    for message in candidate_messages:
+        if not any(prices_match(price, last_offer) for price in price_candidates_from_text(message)):
+            continue
+        if (
+            PARTIAL_PAYMENT_CONTEXT_PATTERN.search(message)
+            and REMAINING_PAYMENT_CONTEXT_PATTERN.search(message)
+        ):
+            return True
+    return False
+
+
 def parse_csv(value):
     if value is None:
         return None
@@ -437,6 +491,7 @@ def result_has_system_data_error(data):
         or data.get("terminal_not_closed", False)
         or result_has_terminal_not_closed(data)
         or result_has_false_feasible_offer_extraction(data)
+        or result_has_partial_payment_price_extraction(data)
     )
 
 

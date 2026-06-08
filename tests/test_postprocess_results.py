@@ -482,6 +482,54 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertFalse(data["irrational_refuse"])
             self.assertFalse(data["model_behavior_anomaly"])
 
+    def test_postprocess_excludes_partial_payment_price_extraction(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_63" / "budget_high"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_63_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$314"},
+                        "seller_price_offers": [449, 538.8, 269.4],
+                        "budget": 538.8,
+                        "negotiation_result": "accepted",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "I am happy to accept your offer of $538.80."},
+                            {"speaker": "Buyer", "message": "Let's split the payment into two parts: $269.40 each."},
+                            {
+                                "speaker": "Seller",
+                                "message": "We will process the first $269.40 payment now and the second half before shipping.",
+                            },
+                        ],
+                        "price_extraction_events": [
+                            {
+                                "seller_message": "I am happy to accept your offer of $538.80.",
+                                "summary_response": "$538.80",
+                                "price": 538.8,
+                                "status": "parsed",
+                            },
+                            {
+                                "seller_message": "We will process the first $269.40 payment now and the second half before shipping.",
+                                "summary_response": "$269.40",
+                                "price": 269.4,
+                                "status": "parsed",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertTrue(data["partial_payment_price_extraction"])
+            self.assertTrue(data["system_data_error"])
+            self.assertTrue(data["system_data_flags"]["partial_payment_price_extraction"])
+            self.assertFalse(data["out_of_wholesale"])
+            self.assertFalse(data["model_behavior_anomaly"])
+
     def test_postprocess_keeps_rational_price_impasse_out_of_model_risk(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_68" / "budget_low"

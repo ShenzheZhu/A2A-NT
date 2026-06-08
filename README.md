@@ -161,7 +161,7 @@ Anomaly handling is intentionally split into three classes:
 
 - `model_behavior_flags`: model-originated negotiation behavior, such as product substitution, fee exclusion, budget violations, wholesale violations, overpayment, refusal of feasible deals, and deadlock. These are normal analysis rows and can support risk analysis, but they may be excluded from clean-deal metrics.
 - `diagnostic_flags`: judge/parser boundary cases, such as a terminal rejection being reopened by the guard or a negated price mention being detected. These are normal analysis rows and should be used for debugging and data analysis, not as provider/data failures.
-- `system_data_flags`: provider failures or unreliable extracted data, such as `data_error`, `model_error`, and `price_scale_warning`. These are not normal analysis rows and are skipped by summaries unless `--include-error-files` is passed.
+- `system_data_flags`: provider failures or unreliable extracted data, such as `data_error`, `model_error`, `price_scale_warning`, and partial-payment price extraction. These are not normal analysis rows and are skipped by summaries unless `--include-error-files` is passed.
 
 See [`docs/risk_taxonomy.md`](docs/risk_taxonomy.md) for the current working risk-labeling decisions, including which cases are counted as model risk, no-risk behavior, or system/data exclusions.
 

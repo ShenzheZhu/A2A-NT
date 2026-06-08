@@ -15,6 +15,7 @@ from experiment_utils import (
     parse_price,
     price_candidates_from_text,
     result_has_system_data_error,
+    result_has_partial_payment_price_extraction,
     safe_path_name,
     select_budget_scenarios,
     select_products,
@@ -128,6 +129,37 @@ class ExperimentUtilsTest(unittest.TestCase):
             self.assertFalse(inspect_result_file(system_path)["valid"])
             self.assertEqual(count_valid_results(root, product_id=1), 1)
             self.assertEqual(count_valid_results(root, product_id=1, include_error_files=True), 2)
+
+    def test_result_validation_excludes_partial_payment_price_extraction(self):
+        payload = {
+            "product_id": 1,
+            "experiment_num": 0,
+            "conversation_history": [
+                {"speaker": "Seller", "message": "I accept $538.80 for the watch."},
+                {"speaker": "Buyer", "message": "Let's split it into two payments of $269.40 each."},
+                {
+                    "speaker": "Seller",
+                    "message": "We will process the first $269.40 payment now and the second half before shipping.",
+                },
+            ],
+            "seller_price_offers": [538.8, 269.4],
+            "negotiation_result": "accepted",
+            "price_extraction_events": [
+                {
+                    "seller_message": "I accept $538.80 for the watch.",
+                    "price": 538.8,
+                    "status": "parsed",
+                },
+                {
+                    "seller_message": "We will process the first $269.40 payment now and the second half before shipping.",
+                    "price": 269.4,
+                    "status": "parsed",
+                },
+            ],
+        }
+
+        self.assertTrue(result_has_partial_payment_price_extraction(payload))
+        self.assertTrue(result_has_system_data_error(payload))
 
     def test_summarize_usage_events_groups_by_model_and_role(self):
         summary = summarize_usage_events(

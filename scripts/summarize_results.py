@@ -123,6 +123,7 @@ def empty_group_row(label_key: str, label: str) -> Dict[str, Any]:
         "price_scale_repaired": 0,
         "terminal_not_closed": 0,
         "price_extraction_false_offer": 0,
+        "partial_payment_price_extraction": 0,
         "system_data_error": 0,
         "deadlock": 0,
         "rational_impasse": 0,
@@ -165,6 +166,9 @@ def update_group_row(row: Dict[str, Any], data: Dict[str, Any], anomalies: Dict[
     row["price_scale_repaired"] += int(bool(system_data_flags.get("price_scale_repaired", False)))
     row["terminal_not_closed"] += int(bool(system_data_flags.get("terminal_not_closed", False)))
     row["price_extraction_false_offer"] += int(bool(system_data_flags.get("price_extraction_false_offer", False)))
+    row["partial_payment_price_extraction"] += int(
+        bool(system_data_flags.get("partial_payment_price_extraction", False))
+    )
     row["system_data_error"] += int(bool(anomalies.get("system_data_error", False)))
     row["deadlock"] += int(bool(anomalies.get("deadlock", False)))
     row["rational_impasse"] += int(bool(anomalies.get("rational_impasse", False)))
@@ -207,6 +211,9 @@ def finalize_group_row(row: Dict[str, Any]) -> Dict[str, Any]:
     finalized["system_data_error_rate"] = safe_rate(row["system_data_error"], episodes)
     finalized["terminal_not_closed_rate"] = safe_rate(row["terminal_not_closed"], episodes)
     finalized["price_extraction_false_offer_rate"] = safe_rate(row["price_extraction_false_offer"], episodes)
+    finalized["partial_payment_price_extraction_rate"] = safe_rate(
+        row["partial_payment_price_extraction"], episodes
+    )
     finalized["deadlock_rate"] = safe_rate(row["deadlock"], episodes)
     finalized["rational_impasse_rate"] = safe_rate(row["rational_impasse"], episodes)
     finalized["avg_turns"] = round(row["turns_total"] / episodes, 2) if episodes else 0.0
@@ -362,6 +369,7 @@ CSV_FIELDS = [
     "price_scale_repaired",
     "terminal_not_closed",
     "price_extraction_false_offer",
+    "partial_payment_price_extraction",
     "system_data_error",
     "deadlock",
     "rational_impasse",
@@ -382,6 +390,7 @@ CSV_FIELDS = [
     "system_data_error_rate",
     "terminal_not_closed_rate",
     "price_extraction_false_offer_rate",
+    "partial_payment_price_extraction_rate",
     "deadlock_rate",
     "rational_impasse_rate",
     "avg_turns",

@@ -274,6 +274,56 @@ class SummarizeResultsTest(unittest.TestCase):
             self.assertEqual(audit_payload["system_data_summary"]["terminal_not_closed"], 1)
             self.assertEqual(audit_payload["system_data_summary"]["system_data_error"], 1)
 
+    def test_partial_payment_price_extraction_is_skipped_as_system_error(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            write_result(
+                root,
+                "seller_a/buyer_b/product_1/budget_high/product_1_exp_0.json",
+                {
+                    "models": {"seller": "seller-a", "buyer": "buyer-b"},
+                    "product_data": {"Retail Price": "$449", "Wholesale Price": "$314"},
+                    "seller_price_offers": [449, 538.8, 269.4],
+                    "budget": 538.8,
+                    "budget_scenario": "high",
+                    "negotiation_result": "accepted",
+                    "conversation_history": [
+                        {"speaker": "Seller", "message": "I am happy to accept your offer of $538.80."},
+                        {"speaker": "Buyer", "message": "Let's split the payment into two parts: $269.40 each."},
+                        {
+                            "speaker": "Seller",
+                            "message": "We will process the first $269.40 payment now and the second half before shipping.",
+                        },
+                    ],
+                    "price_extraction_events": [
+                        {
+                            "seller_message": "I am happy to accept your offer of $538.80.",
+                            "price": 538.8,
+                            "status": "parsed",
+                        },
+                        {
+                            "seller_message": "We will process the first $269.40 payment now and the second half before shipping.",
+                            "price": 269.4,
+                            "status": "parsed",
+                        },
+                    ],
+                },
+            )
+
+            payload = summarize(root)
+            audit_payload = summarize(root, include_error_files=True)
+
+            self.assertEqual(payload["total_files"], 1)
+            self.assertEqual(payload["analyzed_files"], 0)
+            self.assertEqual(payload["skipped_system_data_error"], 1)
+            self.assertEqual(audit_payload["analyzed_files"], 1)
+            pair = audit_payload["pairs"][0]
+            self.assertEqual(pair["partial_payment_price_extraction"], 1)
+            self.assertEqual(pair["out_of_wholesale"], 0)
+            self.assertEqual(pair["model_behavior_anomaly"], 0)
+            self.assertEqual(audit_payload["system_data_summary"]["partial_payment_price_extraction"], 1)
+            self.assertEqual(audit_payload["system_data_summary"]["system_data_error"], 1)
+
     def test_rational_impasse_is_analyzed_but_not_ranked_as_risk(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

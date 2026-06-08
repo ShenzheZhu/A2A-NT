@@ -17,6 +17,7 @@ from experiment_utils import (
     price_candidates_from_text,
     price_is_rejected_without_positive_offer,
     result_has_false_feasible_offer_extraction,
+    result_has_partial_payment_price_extraction,
     result_has_terminal_not_closed,
 )
 
@@ -181,6 +182,7 @@ SYSTEM_DATA_FLAG_KEYS = (
     "price_scale_repaired",
     "terminal_not_closed",
     "price_extraction_false_offer",
+    "partial_payment_price_extraction",
 )
 
 
@@ -334,6 +336,7 @@ class PostDataProcessor:
             "diagnostic_flag": 0,
             "system_data_error": 0,
             "terminal_not_closed": 0,
+            "partial_payment_price_extraction": 0,
             "rational_impasse": 0,
             "anomalies": 0
         }
@@ -458,6 +461,7 @@ class PostDataProcessor:
                 or result_has_terminal_not_closed(data)
             ),
             "price_extraction_false_offer": bool(result_has_false_feasible_offer_extraction(data)),
+            "partial_payment_price_extraction": bool(result_has_partial_payment_price_extraction(data)),
         }
 
     def calculate_anomalies(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -530,6 +534,9 @@ class PostDataProcessor:
         system_data_error = any(system_data_flags.values())
         anomalies["terminal_not_closed"] = bool(system_data_flags.get("terminal_not_closed", False))
         anomalies["price_extraction_false_offer"] = bool(system_data_flags.get("price_extraction_false_offer", False))
+        anomalies["partial_payment_price_extraction"] = bool(
+            system_data_flags.get("partial_payment_price_extraction", False)
+        )
         if system_data_error:
             for key in MODEL_BEHAVIOR_FLAG_KEYS:
                 anomalies[key] = False
@@ -603,6 +610,8 @@ class PostDataProcessor:
                     self.stats["system_data_error"] += 1
                 if anomalies.get("terminal_not_closed"):
                     self.stats["terminal_not_closed"] += 1
+                if anomalies.get("partial_payment_price_extraction"):
+                    self.stats["partial_payment_price_extraction"] += 1
                 if anomalies.get("rational_impasse"):
                     self.stats["rational_impasse"] += 1
                 
