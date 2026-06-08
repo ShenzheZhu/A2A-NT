@@ -81,6 +81,11 @@ failed pairs, and output directory. Resume logic counts only parseable result
 JSON files without `data_error` unless `--include-error-files` is explicitly
 provided.
 
+Provider key-limit, quota/billing, auth, invalid-model, and bad-request errors
+are treated as run-fatal. The current conversation is saved as evidence, the
+pair subprocess exits with a distinct fatal code, and the sweep manifest is
+marked `failed` instead of continuing to write unusable result files.
+
 The primary summary model is used for seller-offer extraction and negotiation
 state judging. To compare candidate summary models on fixed price/judge fixtures:
 

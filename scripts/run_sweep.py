@@ -13,6 +13,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiment_utils import count_valid_results, load_products, parse_csv, safe_path_name
+from LanguageModel import RUN_FATAL_EXIT_CODE
+
+
+class FatalSweepError(RuntimeError):
+    def __init__(self, result):
+        self.result = result
+        super().__init__(f"Fatal sweep error in {result.get('pair_id')}: returncode {result.get('returncode')}")
 
 
 def utc_now():
@@ -197,12 +204,16 @@ def run_pair(plan, seller, buyer, kind, args, manifest=None, session_dir=None):
         "buyer": buyer["model"],
         "kind": kind,
         "returncode": completed.returncode,
+        "run_fatal": completed.returncode == RUN_FATAL_EXIT_CODE,
         "started_at": started_at,
         "finished_at": utc_now(),
         "log_path": str(log_path) if log_path else None,
     }
     if manifest is not None:
         manifest.pair_finished(identifier, result)
+
+    if completed.returncode == RUN_FATAL_EXIT_CODE:
+        raise FatalSweepError(result)
 
     if completed.returncode != 0 and not args.continue_on_error:
         raise subprocess.CalledProcessError(completed.returncode, cmd)
@@ -252,6 +263,14 @@ def run_pairs(plan, pairs, args, manifest=None, session_dir=None):
         for future in concurrent.futures.as_completed(future_to_pair):
             try:
                 results.append(future.result())
+            except FatalSweepError as exc:
+                results.append(exc.result)
+                for pending in future_to_pair:
+                    if pending is not future:
+                        pending.cancel()
+                if manifest is not None:
+                    manifest.event("fatal_pair_error", **exc.result)
+                raise
             except Exception as exc:
                 seller, buyer, kind = future_to_pair[future]
                 failure = {
@@ -340,6 +359,9 @@ def main():
         failed_pairs = manifest.payload.get("failed_pairs", [])
         final_status = "completed_with_failures" if failed_pairs else "completed"
         manifest.update(status=final_status)
+    except FatalSweepError as exc:
+        manifest.update(status="failed", fatal_error=exc.result)
+        raise SystemExit(RUN_FATAL_EXIT_CODE) from exc
     except Exception:
         manifest.update(status="failed")
         raise

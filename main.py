@@ -1,6 +1,8 @@
 import argparse
 import os
+import sys
 from Conversation import Conversation
+from LanguageModel import RUN_FATAL_EXIT_CODE
 from experiment_utils import (
     SUPPORTED_BUDGET_SCENARIOS,
     calculate_budget_scenarios,
@@ -116,6 +118,13 @@ def _run_product_experiment(
             
             # Save conversation
             conversation.save_conversation(full_output_dir)
+
+            if conversation.run_fatal_error:
+                print(
+                    "Run-fatal model error encountered. "
+                    f"Stopping subprocess with exit code {RUN_FATAL_EXIT_CODE}."
+                )
+                sys.exit(RUN_FATAL_EXIT_CODE)
             
             # Print summary of the completed negotiation
             print(f"\nExperiment {existing_count + exp_num + 1} completed and saved to {full_output_dir}")

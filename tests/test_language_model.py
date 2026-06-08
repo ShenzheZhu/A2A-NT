@@ -34,6 +34,10 @@ class LanguageModelTest(unittest.TestCase):
     def test_classify_billing_and_auth_errors(self):
         self.assertEqual(classify_model_error(FakeProviderError("Payment required", 402)), "billing_or_quota")
         self.assertEqual(classify_model_error(FakeProviderError("invalid api key", 401)), "auth")
+        self.assertEqual(
+            classify_model_error(FakeProviderError("Key limit exceeded (total limit)", 403)),
+            "billing_or_quota",
+        )
 
     def test_fatal_provider_error_does_not_retry(self):
         calls = []
