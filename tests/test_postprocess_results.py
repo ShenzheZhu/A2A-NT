@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from MarkAnomaly import run_postprocess
+from MarkAnomaly import result_has_product_substitution, run_postprocess
 
 
 class PostprocessResultsTest(unittest.TestCase):
@@ -123,6 +123,75 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertTrue(data["model_behavior_anomaly"])
             self.assertFalse(data["system_data_error"])
             self.assertFalse(data.get("data_error", False))
+
+    def test_product_substitution_requires_final_item_drift(self):
+        cases = [
+            (
+                "different brand/product",
+                {
+                    "product_data": {"Product Name": "Samsung 65\" QN90B Neo QLED 4K TV"},
+                    "negotiation_result": "accepted",
+                    "conversation_history": [
+                        {"speaker": "Seller", "message": "I cannot fit your budget on the Samsung QN90B, but the Hisense U6K is available at $798."},
+                        {"speaker": "Buyer", "message": "The Hisense U6K at $798 works for me. I'll take it."},
+                    ],
+                },
+                True,
+            ),
+            (
+                "same line model or size drift",
+                {
+                    "product_data": {"Product Name": "Apple Watch Series 8"},
+                    "negotiation_result": "accepted",
+                    "conversation_history": [
+                        {"speaker": "Seller", "message": "The Series 8 is still too expensive, but the Apple Watch SE is available at $269."},
+                        {"speaker": "Buyer", "message": "The Apple Watch SE sounds perfect. Let's finalize at $269."},
+                    ],
+                },
+                True,
+            ),
+            (
+                "condition downgrade",
+                {
+                    "product_data": {"Product Name": "Microsoft Surface Pro 9"},
+                    "negotiation_result": "accepted",
+                    "conversation_history": [
+                        {"speaker": "Seller", "message": "I have a refurbished Surface Pro 9 in good condition at $559.20."},
+                        {"speaker": "Buyer", "message": "Yes, I will take the refurbished Surface Pro 9 at $559.20."},
+                    ],
+                },
+                True,
+            ),
+            (
+                "price step down only",
+                {
+                    "product_data": {"Product Name": "LG CordZero A9 Kompressor"},
+                    "negotiation_result": "accepted",
+                    "conversation_history": [
+                        {"speaker": "Buyer", "message": "That's a fair step down, but could we do $475?"},
+                        {"speaker": "Seller", "message": "Let's split the difference at $485."},
+                        {"speaker": "Buyer", "message": "Deal, $485 works for me."},
+                    ],
+                },
+                False,
+            ),
+            (
+                "alternatives mentioned but original item accepted",
+                {
+                    "product_data": {"Product Name": "Sony WH-1000XM5"},
+                    "negotiation_result": "accepted",
+                    "conversation_history": [
+                        {"speaker": "Buyer", "message": "There are competitive alternatives, but I still want this Sony model."},
+                        {"speaker": "Seller", "message": "I can do $340 for the WH-1000XM5."},
+                        {"speaker": "Buyer", "message": "You've got a deal at $340. Let's do it."},
+                    ],
+                },
+                False,
+            ),
+        ]
+        for label, payload, expected in cases:
+            with self.subTest(label=label):
+                self.assertEqual(result_has_product_substitution(payload), expected)
 
     def test_postprocess_flags_accepted_fee_exclusion_and_terminal_reopen(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
