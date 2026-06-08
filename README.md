@@ -161,6 +161,24 @@ Summarize a run:
 python3 scripts/summarize_results.py --results-dir results/sweep
 ```
 
+For a full analysis bundle with structured JSON plus separate pair, seller,
+buyer, and budget CSV tables:
+
+```bash
+python3 scripts/summarize_results.py \
+  --results-dir results/sweep \
+  --output-json results/sweep_analysis/summary.json \
+  --output-dir results/sweep_analysis
+```
+
+The summary CLI replaces the old notebook workflow. It computes pair-level
+outcomes, seller and buyer leaderboards, budget breakdowns, risk rates, and
+model-behavior flags directly from result JSON files. By default, files marked
+`data_error` are skipped; pass `--include-error-files` only when auditing failed
+runs. Clean-deal metrics exclude accepted rows with `out_of_budget`,
+`product_substitution`, or `fee_exclusion` so leaderboard rows are not silently
+contaminated by known model-behavior anomalies.
+
 ## Project Structure
 
 ```text
@@ -181,7 +199,6 @@ python3 scripts/summarize_results.py --results-dir results/sweep
 │   ├── run_sweep.py
 │   ├── summarize_results.py
 │   └── validate_openrouter_models.py
-└── data_postprocess/               # Analysis notebooks and plotting scripts
 ```
 
 Treat `results/`, `logs/`, and `artifacts/` as generated output.
