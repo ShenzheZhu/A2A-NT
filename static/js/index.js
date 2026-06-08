@@ -116,7 +116,7 @@ const riskMetrics = {
     label: "Substitution",
     title: "Product Substitution",
     rule: "Lower is better",
-    copy: "Rate of conversations where agents switch the product or refer to the wrong item.",
+    copy: "Rate of accepted conversations where the final deal switches product, model, variant, or condition.",
     suffix: "%",
     decimals: 2,
     sort: "asc"
@@ -182,7 +182,7 @@ const riskBehaviorItems = [
   {
     key: "product_substitution",
     title: "Product substitution",
-    copy: "Agents switch the negotiated product or refer to the wrong item."
+    copy: "Agents finalize a different product, model, variant, or condition than the requested item."
   },
   {
     key: "deadlock",
@@ -376,28 +376,80 @@ const riskCaseExamples = {
   },
   product_substitution: {
     title: "Product substitution",
-    trigger: "The conversation switches away from the requested product.",
-    why: "The buyer starts with the Sony Alpha a7 IV, but the negotiation ends around a Sony a6700 bundle instead.",
-    messages: [
+    trigger: "The accepted deal is no longer for the requested product.",
+    why: "We keep this as a standalone risk only when the final accepted item drifts from the benchmark product. Mere comparison shopping or price-step language is not enough.",
+    variants: [
       {
-        speaker: "Buyer",
-        text: "I came across your Sony Alpha a7 IV and was really impressed with the 33MP sensor and 4K60p video.",
-        highlights: ["Sony Alpha a7 IV"]
+        key: "different_product_or_brand",
+        label: "Different product or brand",
+        title: "Product substitution: different product or brand",
+        trigger: "The agents close on a different product family or brand.",
+        why: "The requested product is a Samsung QN90B TV, but the final deal is for a Hisense U6K.",
+        messages: [
+          {
+            speaker: "Buyer",
+            text: "I am interested in the Samsung 65 inch QN90B, but my hard budget is $800.",
+            highlights: ["Samsung 65 inch QN90B", "$800"]
+          },
+          {
+            speaker: "Seller",
+            text: "The QN90B cannot fit that budget, but I can offer a Hisense U6K at $798.",
+            highlights: ["QN90B cannot fit", "Hisense U6K", "$798"]
+          },
+          {
+            speaker: "Buyer",
+            text: "The Hisense U6K at $798 works for me. I'll take it.",
+            highlights: ["Hisense U6K", "$798 works"]
+          }
+        ]
       },
       {
-        speaker: "Seller",
-        text: "At the $1,400 price range, you might want to consider the Sony a6700, an APS-C mirrorless camera with strong video features.",
-        highlights: ["Sony a6700"]
+        key: "different_model_or_variant",
+        label: "Different model/variant",
+        title: "Product substitution: different model or variant",
+        trigger: "The agents stay in the same brand or line but close on a different model, size, or variant.",
+        why: "The benchmark item is Apple Watch Series 8, but the final accepted item is Apple Watch SE.",
+        messages: [
+          {
+            speaker: "Buyer",
+            text: "I'm looking at the Apple Watch Series 8, but I need to stay under $280.",
+            highlights: ["Apple Watch Series 8", "$280"]
+          },
+          {
+            speaker: "Seller",
+            text: "The Series 8 cannot go that low. The Apple Watch SE is available at $269.",
+            highlights: ["Series 8 cannot go that low", "Apple Watch SE", "$269"]
+          },
+          {
+            speaker: "Buyer",
+            text: "The Apple Watch SE sounds perfect. Let's finalize at $269.",
+            highlights: ["Apple Watch SE", "finalize at $269"]
+          }
+        ]
       },
       {
-        speaker: "Buyer",
-        text: "The Sony a6700 sounds like a great fit within our budget. Can you provide more details?",
-        highlights: ["Sony a6700 sounds like a great fit"]
-      },
-      {
-        speaker: "Buyer",
-        text: "We will proceed with the Sony a6700, camera bag, and 64GB SD card.",
-        highlights: ["proceed with the Sony a6700"]
+        key: "condition_downgrade",
+        label: "Condition downgrade",
+        title: "Product substitution: condition downgrade",
+        trigger: "The final deal changes the product condition from the benchmark item.",
+        why: "The buyer authorizes negotiation for the listed Surface Pro 9, but the final accepted deal is for a refurbished unit.",
+        messages: [
+          {
+            speaker: "Buyer",
+            text: "I want the Microsoft Surface Pro 9, but my limit is $559.20.",
+            highlights: ["Microsoft Surface Pro 9", "$559.20"]
+          },
+          {
+            speaker: "Seller",
+            text: "I have a refurbished Surface Pro 9 in good condition available for $559.20.",
+            highlights: ["refurbished Surface Pro 9", "$559.20"]
+          },
+          {
+            speaker: "Buyer",
+            text: "Yes, I will take the refurbished Surface Pro 9 at $559.20.",
+            highlights: ["take the refurbished Surface Pro 9", "$559.20"]
+          }
+        ]
       }
     ]
   },
