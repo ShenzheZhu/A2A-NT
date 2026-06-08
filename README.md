@@ -114,7 +114,9 @@ python3 MarkAnomaly.py --results-dir results/sweep
 Post-processing does three things by default:
 
 - Adds anomaly fields such as `overpayment`, `out_of_budget`, `out_of_wholesale`, `deadlock`, and `bargaining_rate`.
-- Adds model-behavior diagnostics under `model_behavior_flags`, with mirrored top-level fields such as `product_substitution`, `fee_exclusion`, `terminal_rejection_reopened`, and `negated_price_offer`. These labels are analysis signals, not provider/data failures.
+- Adds model-behavior anomaly labels under `model_behavior_flags`, with mirrored top-level fields such as `product_substitution` and `fee_exclusion`. These rows remain valid analysis rows, but clean-deal metrics exclude accepted deals with unsafe model-behavior outcomes.
+- Adds pipeline diagnostics under `diagnostic_flags`, with mirrored top-level fields such as `terminal_rejection_reopened`, `negated_price_offer`, `offer_over_budget`, and `offer_over_first`. These rows remain valid analysis rows because they identify judge/extraction boundary cases rather than provider/data failures.
+- Adds system/data labels under `system_data_flags` and the aggregate `system_data_error`. Rows with `data_error`, provider `model_error`, or `price_scale_warning` are excluded from formal summaries by default.
 - Marks `data_error` when the extracted offer trajectory indicates a likely extraction anomaly.
 - Flags suspicious price-scale cases with `price_scale_warning`, `price_scale_original_offers`, and `price_scale_suggested_offers`.
 
@@ -155,6 +157,12 @@ Each result file contains the conversation history, extracted seller offers, neg
 
 Result files also include `price_extraction_events`, which record the summary-model extraction response, parsed price, parser source, unparsed cases, and rejected price mentions. They also include `judge_events`, which record the summary-model state judgment, deterministic guard output, and any override reason. Use these diagnostics before trusting leaderboard rows with `price_scale_warning`, `data_error`, or model-behavior flags that should be analyzed separately from normal deal outcomes.
 
+Anomaly handling is intentionally split into three classes:
+
+- `model_behavior_flags`: model-originated negotiation behavior, such as product substitution, fee exclusion, budget violations, wholesale violations, overpayment, refusal of feasible deals, and deadlock. These are normal analysis rows and can support risk analysis, but they may be excluded from clean-deal metrics.
+- `diagnostic_flags`: judge/parser boundary cases, such as a terminal rejection being reopened by the guard or a negated price mention being detected. These are normal analysis rows and should be used for debugging and data analysis, not as provider/data failures.
+- `system_data_flags`: provider failures or unreliable extracted data, such as `data_error`, `model_error`, and `price_scale_warning`. These are not normal analysis rows and are skipped by summaries unless `--include-error-files` is passed.
+
 New result files also include `usage_events` and `usage_summary` with
 non-sensitive provider metadata such as model id, role, stage, token counts, and
 LiteLLM/OpenRouter estimated cost when available. Historical result files that
@@ -180,10 +188,13 @@ python3 scripts/summarize_results.py \
 The summary CLI replaces the old notebook workflow. It computes pair-level
 outcomes, seller and buyer leaderboards, budget breakdowns, risk rates, and
 model-behavior flags directly from result JSON files. By default, files marked
-`data_error` are skipped; pass `--include-error-files` only when auditing failed
-runs. Clean-deal metrics exclude accepted rows with `out_of_budget`,
-`product_substitution`, or `fee_exclusion` so leaderboard rows are not silently
-contaminated by known model-behavior anomalies.
+with system/data failures are skipped; pass `--include-error-files` only when
+auditing failed or unreliable runs. Clean-deal metrics exclude accepted rows
+with unsafe model-behavior outcomes such as `overpayment`, `out_of_budget`,
+`out_of_wholesale`, `product_substitution`, or `fee_exclusion` so leaderboard
+rows are not silently contaminated by known model-behavior anomalies. The JSON
+summary also exposes `model_behavior_summary`, `diagnostic_summary`, and
+`system_data_summary` for separate analysis.
 
 Partial or provider-interrupted sweeps should be treated as diagnostic pilot
 artifacts, not publishable leaderboards. They are useful for debugging prompts,

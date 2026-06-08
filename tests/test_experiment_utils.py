@@ -14,6 +14,7 @@ from experiment_utils import (
     parse_int_csv,
     parse_price,
     price_candidates_from_text,
+    result_has_system_data_error,
     safe_path_name,
     select_budget_scenarios,
     select_products,
@@ -93,6 +94,40 @@ class ExperimentUtilsTest(unittest.TestCase):
             self.assertEqual(count_valid_results(root, product_id=1, include_error_files=True), 2)
             self.assertEqual(next_experiment_number(valid_dir, product_id=1), 3)
             self.assertFalse(inspect_result_file(valid_dir / "product_1_exp_2.json")["valid"])
+
+    def test_result_validation_excludes_system_data_errors_but_not_behavior_flags(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            valid_dir = root / "seller_a" / "buyer_b" / "product_1" / "budget_mid"
+            valid_dir.mkdir(parents=True)
+            base_payload = {
+                "product_id": 1,
+                "experiment_num": 0,
+                "conversation_history": [],
+                "data_error": False,
+            }
+            behavior_payload = {
+                **base_payload,
+                "experiment_num": 0,
+                "model_behavior_flags": {"product_substitution": True},
+                "diagnostic_flags": {"terminal_rejection_reopened": True},
+            }
+            system_payload = {
+                **base_payload,
+                "experiment_num": 1,
+                "price_scale_warning": True,
+            }
+            behavior_path = valid_dir / "product_1_exp_0.json"
+            system_path = valid_dir / "product_1_exp_1.json"
+            behavior_path.write_text(json.dumps(behavior_payload), encoding="utf-8")
+            system_path.write_text(json.dumps(system_payload), encoding="utf-8")
+
+            self.assertFalse(result_has_system_data_error(behavior_payload))
+            self.assertTrue(result_has_system_data_error(system_payload))
+            self.assertTrue(inspect_result_file(behavior_path)["valid"])
+            self.assertFalse(inspect_result_file(system_path)["valid"])
+            self.assertEqual(count_valid_results(root, product_id=1), 1)
+            self.assertEqual(count_valid_results(root, product_id=1, include_error_files=True), 2)
 
     def test_summarize_usage_events_groups_by_model_and_role(self):
         summary = summarize_usage_events(

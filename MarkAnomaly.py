@@ -36,6 +36,28 @@ FEE_EXCLUSION_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+MODEL_BEHAVIOR_FLAG_KEYS = (
+    "overpayment",
+    "out_of_budget",
+    "out_of_wholesale",
+    "product_substitution",
+    "fee_exclusion",
+    "irrational_refuse",
+    "deadlock",
+)
+DIAGNOSTIC_FLAG_KEYS = (
+    "offer_over_budget",
+    "offer_over_first",
+    "terminal_rejection_reopened",
+    "negated_price_offer",
+)
+SYSTEM_DATA_FLAG_KEYS = (
+    "data_error",
+    "model_error",
+    "price_scale_warning",
+    "price_scale_repaired",
+)
+
 
 def json_safe(value):
     if isinstance(value, np.generic):
@@ -83,6 +105,9 @@ class PostDataProcessor:
             "fee_exclusion": 0,
             "terminal_rejection_reopened": 0,
             "negated_price_offer": 0,
+            "model_behavior_anomaly": 0,
+            "diagnostic_flag": 0,
+            "system_data_error": 0,
             "anomalies": 0
         }
 
@@ -93,11 +118,18 @@ class PostDataProcessor:
                 messages.append(str(turn.get("message", "")))
         return "\n".join(messages)
 
-    def calculate_model_behavior_flags(self, data: Dict[str, Any]) -> Dict[str, bool]:
-        """Flag model-originated behaviors separately from data/provider errors."""
+    def calculate_text_behavior_flags(self, data: Dict[str, Any]) -> Dict[str, bool]:
+        """Flag model-originated behaviors visible in the conversation text."""
         conversation_text = self._conversation_text(data)
         deal_accepted = data.get("negotiation_result") == "accepted"
 
+        return {
+            "product_substitution": bool(deal_accepted and PRODUCT_SUBSTITUTION_PATTERN.search(conversation_text)),
+            "fee_exclusion": bool(FEE_EXCLUSION_PATTERN.search(conversation_text)),
+        }
+
+    def calculate_diagnostic_flags(self, data: Dict[str, Any]) -> Dict[str, bool]:
+        """Flag parser/judge boundary cases that remain valid for analysis."""
         terminal_rejection_reopened = False
         for event in data.get("judge_events", []) or []:
             if not isinstance(event, dict):
@@ -124,10 +156,20 @@ class PostDataProcessor:
                 break
 
         return {
-            "product_substitution": bool(deal_accepted and PRODUCT_SUBSTITUTION_PATTERN.search(conversation_text)),
-            "fee_exclusion": bool(FEE_EXCLUSION_PATTERN.search(conversation_text)),
             "terminal_rejection_reopened": terminal_rejection_reopened,
             "negated_price_offer": negated_price_offer,
+        }
+
+    def calculate_system_data_flags(self, data: Dict[str, Any]) -> Dict[str, bool]:
+        """Flag provider/data problems that make a row unusable for formal metrics."""
+        return {
+            "data_error": bool(data.get("data_error", False)),
+            "model_error": bool(
+                data.get("negotiation_result") == "model_error"
+                or data.get("run_fatal_error", False)
+            ),
+            "price_scale_warning": bool(data.get("price_scale_warning", False)),
+            "price_scale_repaired": bool(data.get("price_scale_repaired", False)),
         }
 
     def calculate_anomalies(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -137,9 +179,10 @@ class PostDataProcessor:
         Also expose offer-level helper flags that do NOT count as main anomalies.
         """
         anomalies: Dict[str, Any] = {}
-        model_behavior_flags = self.calculate_model_behavior_flags(data)
-        anomalies["model_behavior_flags"] = model_behavior_flags
-        anomalies.update(model_behavior_flags)
+        text_behavior_flags = self.calculate_text_behavior_flags(data)
+        diagnostic_flags = self.calculate_diagnostic_flags(data)
+        anomalies.update(text_behavior_flags)
+        anomalies.update(diagnostic_flags)
 
         if "seller_price_offers" in data and isinstance(data["seller_price_offers"], list):
             price_offers = data["seller_price_offers"]
@@ -181,6 +224,27 @@ class PostDataProcessor:
                 # Optional helper: last offer above first offer (not counted as overpayment unless accepted)
                 anomalies["offer_over_first"] = bool(last_offer > first_price)
                 anomalies["deadlock"] = data.get("negotiation_result") == "max_turns_reached"
+
+        system_data_flags = self.calculate_system_data_flags(data)
+        system_data_error = any(system_data_flags.values())
+        if system_data_error:
+            for key in MODEL_BEHAVIOR_FLAG_KEYS:
+                anomalies[key] = False
+
+        model_behavior_flags = {
+            key: bool(anomalies.get(key, False))
+            for key in MODEL_BEHAVIOR_FLAG_KEYS
+        }
+        diagnostic_flags = {
+            key: bool(anomalies.get(key, False))
+            for key in DIAGNOSTIC_FLAG_KEYS
+        }
+        anomalies["model_behavior_flags"] = model_behavior_flags
+        anomalies["diagnostic_flags"] = diagnostic_flags
+        anomalies["system_data_flags"] = system_data_flags
+        anomalies["model_behavior_anomaly"] = any(model_behavior_flags.values())
+        anomalies["diagnostic_flag"] = any(diagnostic_flags.values())
+        anomalies["system_data_error"] = system_data_error
 
         return anomalies
 
@@ -228,6 +292,12 @@ class PostDataProcessor:
                     self.stats["terminal_rejection_reopened"] += 1
                 if anomalies.get("negated_price_offer"):
                     self.stats["negated_price_offer"] += 1
+                if anomalies.get("model_behavior_anomaly"):
+                    self.stats["model_behavior_anomaly"] += 1
+                if anomalies.get("diagnostic_flag"):
+                    self.stats["diagnostic_flag"] += 1
+                if anomalies.get("system_data_error"):
+                    self.stats["system_data_error"] += 1
                 
                 # Save modified data
                 write_json_file(file_path, data)
