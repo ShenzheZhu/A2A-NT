@@ -57,6 +57,17 @@ def build_pairs(plan, mode):
     return pairs
 
 
+def filter_pairs_touching(pairs, model_ids):
+    if not model_ids:
+        return pairs
+    wanted = set(model_ids)
+    return [
+        (seller, buyer, kind)
+        for seller, buyer, kind in pairs
+        if seller["model"] in wanted or buyer["model"] in wanted
+    ]
+
+
 def count_products(products_file):
     return len(load_products(products_file))
 
@@ -301,6 +312,11 @@ def main():
     parser.add_argument("--mode", choices=["frontier-grid", "bridge", "all"], default="all")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--max-pairs", type=int, default=None)
+    parser.add_argument(
+        "--touching-models",
+        default=None,
+        help="Comma-separated model ids; only run pairs where seller or buyer matches one of them",
+    )
     parser.add_argument("--product-limit", type=int, default=None)
     parser.add_argument("--products-file", default=None)
     parser.add_argument("--output-dir", default=None)
@@ -323,6 +339,7 @@ def main():
         raise ValueError("--parallel-workers must be at least 1")
     if args.budgets:
         args.budgets = parse_csv(args.budgets)
+    touching_models = parse_csv(args.touching_models)
 
     plan = load_plan(args.config)
     products_file = args.products_file or plan["products_file"]
@@ -330,6 +347,7 @@ def main():
     budgets = args.budgets or plan["budgets"]
     num_experiments = args.num_experiments or plan["num_experiments"]
     pairs = build_pairs(plan, args.mode)
+    pairs = filter_pairs_touching(pairs, touching_models)
     if args.max_pairs is not None:
         pairs = pairs[:args.max_pairs]
 
@@ -339,6 +357,8 @@ def main():
     cells = len(pairs) * product_count * len(budgets) * num_experiments
     print(f"Plan: {plan['name']}")
     print(f"Mode: {args.mode}")
+    if touching_models:
+        print(f"Touching models: {', '.join(touching_models)}")
     print(f"Pairs: {len(pairs)} | products: {product_count} | budgets: {len(budgets)} | experiments: {num_experiments}")
     print(f"Conversation cells: {cells}")
     print(f"Parallel workers: {args.parallel_workers}")

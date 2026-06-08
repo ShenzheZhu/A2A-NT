@@ -31,6 +31,14 @@
     {
       "label": "Grok 4.20",
       "model": "x-ai/grok-4.20"
+    },
+    {
+      "label": "Claude Opus 4.8",
+      "model": "anthropic/claude-opus-4.8"
+    },
+    {
+      "label": "DeepSeek V4 Flash",
+      "model": "deepseek/deepseek-v4-flash"
     }
   ],
   "bridge_models": [

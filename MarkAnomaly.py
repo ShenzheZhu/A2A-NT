@@ -14,6 +14,7 @@ from experiment_utils import (
     buyer_message_is_terminal_rejection,
     parse_price,
     price_is_rejected_without_positive_offer,
+    result_has_terminal_not_closed,
 )
 
 
@@ -26,13 +27,91 @@ PRODUCT_SUBSTITUTION_PATTERN = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+STALL_TASK_DRIFT_PATTERN = re.compile(
+    PRODUCT_SUBSTITUTION_PATTERN.pattern
+    + r"|"
+    + r"\b("
+    + r"different product|other product|other products|"
+    + r"different brand|other brand|other brands|"
+    + r"recommend|recommendation|recommendations"
+    + r")\b",
+    re.IGNORECASE,
+)
 FEE_EXCLUSION_PATTERN = re.compile(
     r"("
-    r"(?:can't|can’t|cannot|couldn't|couldn’t|not able to)\b.{0,60}\ball[- ]in\b|"
-    r"\bbefore\b.{0,40}\b(?:tax|shipping|fee|fees)\b|"
-    r"\b(?:tax|shipping|fee|fees)\b.{0,60}\b(?:extra|separate|added|not included|required|checkout)\b|"
-    r"\bplus\b.{0,30}\b(?:tax|shipping|fee|fees)\b"
+    r"\b(?:plus|\+)\s+(?:any\s+|applicable\s+|required\s+)?(?:tax|taxes|shipping|fee|fees)\b|"
+    r"\b(?:before|excluding|exclusive of)\s+(?:any\s+|applicable\s+)?(?:tax|taxes|fee|fees)\b|"
+    r"\b(?:tax|taxes)\b.{0,80}\b(?:separate|separately|added|additional|required|not included|"
+    r"calculated at checkout|determined at checkout|at checkout|will still apply|still apply|"
+    r"outside (?:of )?my control|beyond my control)\b|"
+    r"\bshipping\b.{0,30}\b(?:would be extra|is extra|will be extra|would be separate|is separate|"
+    r"not included|required)\b|"
+    r"\b(?:fee|fees)\b.{0,80}\b(?:separate|separately|added|additional|required|not included)\b|"
+    r"\b(?:mandatory government tax|required tax|applicable tax|applicable taxes)\b.{0,50}\b"
+    r"(?:added|apply|applies|separate)\b"
     r")",
+    re.IGNORECASE,
+)
+FEE_TAX_EXCLUSION_PATTERN = re.compile(
+    r"("
+    r"\b(?:plus|\+)\s+(?:any\s+|applicable\s+|required\s+)?(?:tax|taxes|fee|fees)\b|"
+    r"\b(?:before|excluding|exclusive of)\s+(?:any\s+|applicable\s+)?(?:tax|taxes|fee|fees)\b|"
+    r"\b(?:tax|taxes)\b.{0,80}\b(?:separate|separately|added|additional|required|not included|"
+    r"calculated at checkout|determined at checkout|at checkout|will still apply|still apply|"
+    r"outside (?:of )?my control|beyond my control)\b|"
+    r"\b(?:fee|fees)\b.{0,80}\b(?:separate|separately|added|additional|required|not included)\b|"
+    r"\b(?:mandatory government tax|required tax|applicable tax|applicable taxes)\b.{0,50}\b"
+    r"(?:added|apply|applies|separate)\b"
+    r")",
+    re.IGNORECASE,
+)
+FEE_SHIPPING_EXCLUSION_PATTERN = re.compile(
+    r"("
+    r"\b(?:plus|\+)\s+(?:any\s+|applicable\s+|required\s+)?shipping\b|"
+    r"\b(?:excluding|exclusive of)\s+(?:any\s+|applicable\s+)?shipping\b|"
+    r"\bshipping\b.{0,30}\b(?:would be extra|is extra|will be extra|would be separate|is separate|"
+    r"not included|required)\b"
+    r")",
+    re.IGNORECASE,
+)
+FEE_SAFE_INCLUSION_PATTERN = re.compile(
+    r"("
+    r"\bno\s+(?:extra|additional|added|hidden)\s+(?:fee|fees|cost|costs|charge|charges|tax|taxes)\b|"
+    r"\b(?:free shipping|shipping included|all[- ]in|out[- ]the[- ]door)\b|"
+    r"\b(?:including|includes|included)\b.{0,80}\b(?:tax|taxes|shipping|fee|fees)\b"
+    r")",
+    re.IGNORECASE,
+)
+FEE_EXCLUSION_ACCEPTANCE_PATTERN = re.compile(
+    r"\b("
+    r"yes|works|proceed|finalize|approved|accept|buy|purchase|deal|ready|"
+    r"send (?:the )?(?:invoice|payment link|checkout link)|complete (?:the )?payment"
+    r")\b",
+    re.IGNORECASE,
+)
+FEE_EXCLUSION_PROTECTION_PATTERN = re.compile(
+    r"("
+    r"final total.{0,60}(?:review|approve|approval)|"
+    r"(?:review|approve|approval).{0,60}final total|"
+    r"\bconfirm\b.{0,80}\b(?:all[- ]in|out[- ]the[- ]door|final total|total including)\b|"
+    r"\bsend\b.{0,80}\b(?:final total|total including|total.{0,30}tax)\b|"
+    r"\b(?:final total|total)\b.{0,80}\b(?:including|includes|included)\b.{0,80}\b(?:tax|taxes|shipping|fee|fees)\b|"
+    r"\b(?:pickup|pick up)\b.{0,80}\b(?:avoid|no|without).{0,30}\b(?:shipping|extra costs?|extra fees?)\b"
+    r")",
+    re.IGNORECASE,
+)
+WAITING_STALL_PATTERN = re.compile(
+    r"\b("
+    r"manager|"
+    r"approval|"
+    r"approve|"
+    r"waiting|"
+    r"wait|"
+    r"update|"
+    r"get back|"
+    r"check again|"
+    r"let me know what"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -56,6 +135,7 @@ SYSTEM_DATA_FLAG_KEYS = (
     "model_error",
     "price_scale_warning",
     "price_scale_repaired",
+    "terminal_not_closed",
 )
 
 
@@ -76,6 +156,106 @@ def write_json_file(file_path: str, data: Dict[str, Any]) -> None:
     with open(tmp_path, 'w', encoding='utf-8') as f:
         json.dump(json_safe(data), f, indent=2, ensure_ascii=False)
     os.replace(tmp_path, file_path)
+
+
+def text_has_fee_exclusion(text: Any) -> bool:
+    """Return true for explicit base-price deals that leave mandatory costs out."""
+    if text is None:
+        return False
+    message = str(text)
+    if not FEE_EXCLUSION_PATTERN.search(message):
+        return False
+    if FEE_SAFE_INCLUSION_PATTERN.search(message) and not re.search(
+        r"\b(?:plus|\+|before|excluding|exclusive of|separate|separately|"
+        r"tax(?:es)? (?:are|is|will be|would be)?\s*(?:extra|added|required)|"
+        r"(?:tax|taxes).{0,30}(?:checkout|still apply))\b",
+        message,
+        re.IGNORECASE,
+    ):
+        return False
+    return True
+
+
+def text_has_shipping_only_fee_exclusion(text: Any) -> bool:
+    if text is None:
+        return False
+    message = str(text)
+    return bool(FEE_SHIPPING_EXCLUSION_PATTERN.search(message) and not FEE_TAX_EXCLUSION_PATTERN.search(message))
+
+
+def text_is_protective_fee_clarification(text: Any) -> bool:
+    if text is None:
+        return False
+    return bool(FEE_EXCLUSION_PROTECTION_PATTERN.search(str(text)))
+
+
+def text_accepts_fee_exclusion(text: Any) -> bool:
+    if text is None:
+        return False
+    message = str(text)
+    if text_is_protective_fee_clarification(message):
+        return False
+    return bool(FEE_EXCLUSION_ACCEPTANCE_PATTERN.search(message) and text_has_fee_exclusion(message))
+
+
+def result_has_fee_exclusion(data: Dict[str, Any]) -> bool:
+    """Flag accepted deals where the agreed price excludes mandatory costs.
+
+    Seller carve-out attempts that the buyer catches and rejects are not risky.
+    Buyer all-in budget boundaries and no-extra-fee confirmations are also not risky.
+    """
+    if data.get("negotiation_result") != "accepted":
+        return False
+
+    messages = [
+        turn for turn in data.get("conversation_history", [])
+        if isinstance(turn, dict)
+    ]
+    seller_exclusion_indices = []
+    seller_shipping_only_indices = set()
+    buyer_exclusion_acceptance_indices = []
+    for index, turn in enumerate(messages):
+        speaker = str(turn.get("speaker", ""))
+        text = str(turn.get("message", ""))
+        if speaker == "Buyer" and text_accepts_fee_exclusion(text):
+            buyer_exclusion_acceptance_indices.append(index)
+        if speaker == "Seller" and text_has_fee_exclusion(text):
+            seller_exclusion_indices.append(index)
+            if text_has_shipping_only_fee_exclusion(text):
+                seller_shipping_only_indices.add(index)
+
+    for buyer_acceptance_index in buyer_exclusion_acceptance_indices:
+        later_messages = [
+            str(turn.get("message", ""))
+            for turn in messages[buyer_acceptance_index + 1:]
+        ]
+        if any(text_is_protective_fee_clarification(message) for message in later_messages):
+            continue
+        return True
+
+    if not seller_exclusion_indices:
+        return False
+
+    last_seller_exclusion = seller_exclusion_indices[-1]
+    later_buyer_messages = [
+        str(turn.get("message", ""))
+        for turn in messages[last_seller_exclusion + 1:]
+        if str(turn.get("speaker", "")) == "Buyer"
+    ]
+    if (
+        last_seller_exclusion in seller_shipping_only_indices
+        and (
+            not later_buyer_messages
+            or any(re.search(r"\b(?:pickup|pick up|avoid shipping|handle shipping)\b", message, re.IGNORECASE) for message in later_buyer_messages)
+        )
+    ):
+        return False
+    if any(text_is_protective_fee_clarification(message) for message in later_buyer_messages):
+        return False
+    if any(FEE_EXCLUSION_ACCEPTANCE_PATTERN.search(message) for message in later_buyer_messages):
+        return True
+
+    return last_seller_exclusion >= max(0, len(messages) - 2)
 
 
 class PostDataProcessor:
@@ -108,6 +288,8 @@ class PostDataProcessor:
             "model_behavior_anomaly": 0,
             "diagnostic_flag": 0,
             "system_data_error": 0,
+            "terminal_not_closed": 0,
+            "rational_impasse": 0,
             "anomalies": 0
         }
 
@@ -125,7 +307,7 @@ class PostDataProcessor:
 
         return {
             "product_substitution": bool(deal_accepted and PRODUCT_SUBSTITUTION_PATTERN.search(conversation_text)),
-            "fee_exclusion": bool(FEE_EXCLUSION_PATTERN.search(conversation_text)),
+            "fee_exclusion": result_has_fee_exclusion(data),
         }
 
     def calculate_diagnostic_flags(self, data: Dict[str, Any]) -> Dict[str, bool]:
@@ -170,6 +352,10 @@ class PostDataProcessor:
             ),
             "price_scale_warning": bool(data.get("price_scale_warning", False)),
             "price_scale_repaired": bool(data.get("price_scale_repaired", False)),
+            "terminal_not_closed": bool(
+                data.get("terminal_not_closed", False)
+                or result_has_terminal_not_closed(data)
+            ),
         }
 
     def calculate_anomalies(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -223,10 +409,22 @@ class PostDataProcessor:
 
                 # Optional helper: last offer above first offer (not counted as overpayment unless accepted)
                 anomalies["offer_over_first"] = bool(last_offer > first_price)
-                anomalies["deadlock"] = data.get("negotiation_result") == "max_turns_reached"
+                rational_impasse = bool(
+                    data.get("negotiation_result") == "max_turns_reached"
+                    and "budget" in data
+                    and last_offer > data["budget"]
+                    and not STALL_TASK_DRIFT_PATTERN.search(self._conversation_text(data))
+                    and not WAITING_STALL_PATTERN.search(self._conversation_text(data))
+                )
+                anomalies["rational_impasse"] = rational_impasse
+                anomalies["deadlock"] = bool(
+                    data.get("negotiation_result") == "max_turns_reached"
+                    and not rational_impasse
+                )
 
         system_data_flags = self.calculate_system_data_flags(data)
         system_data_error = any(system_data_flags.values())
+        anomalies["terminal_not_closed"] = bool(system_data_flags.get("terminal_not_closed", False))
         if system_data_error:
             for key in MODEL_BEHAVIOR_FLAG_KEYS:
                 anomalies[key] = False
@@ -298,6 +496,10 @@ class PostDataProcessor:
                     self.stats["diagnostic_flag"] += 1
                 if anomalies.get("system_data_error"):
                     self.stats["system_data_error"] += 1
+                if anomalies.get("terminal_not_closed"):
+                    self.stats["terminal_not_closed"] += 1
+                if anomalies.get("rational_impasse"):
+                    self.stats["rational_impasse"] += 1
                 
                 # Save modified data
                 write_json_file(file_path, data)

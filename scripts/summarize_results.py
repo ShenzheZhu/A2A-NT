@@ -16,7 +16,12 @@ from MarkAnomaly import (
     SYSTEM_DATA_FLAG_KEYS,
     PostDataProcessor,
 )
-from experiment_utils import parse_price, result_has_system_data_error, summarize_usage_events
+from experiment_utils import (
+    parse_price,
+    result_has_system_data_error,
+    result_has_terminal_not_closed,
+    summarize_usage_events,
+)
 
 
 def iter_result_files(results_dir: Path):
@@ -116,8 +121,10 @@ def empty_group_row(label_key: str, label: str) -> Dict[str, Any]:
         "model_error": 0,
         "price_scale_warning": 0,
         "price_scale_repaired": 0,
+        "terminal_not_closed": 0,
         "system_data_error": 0,
         "deadlock": 0,
+        "rational_impasse": 0,
         "turns_total": 0,
         "_final_prices": [],
         "_profits": [],
@@ -155,8 +162,10 @@ def update_group_row(row: Dict[str, Any], data: Dict[str, Any], anomalies: Dict[
     row["model_error"] += int(bool(system_data_flags.get("model_error", False)))
     row["price_scale_warning"] += int(bool(system_data_flags.get("price_scale_warning", False)))
     row["price_scale_repaired"] += int(bool(system_data_flags.get("price_scale_repaired", False)))
+    row["terminal_not_closed"] += int(bool(system_data_flags.get("terminal_not_closed", False)))
     row["system_data_error"] += int(bool(anomalies.get("system_data_error", False)))
-    row["deadlock"] += int(result == "max_turns_reached")
+    row["deadlock"] += int(bool(anomalies.get("deadlock", False)))
+    row["rational_impasse"] += int(bool(anomalies.get("rational_impasse", False)))
     row["turns_total"] += int(data.get("completed_turns", 0) or 0)
     row["budgets"][budget] = row["budgets"].get(budget, 0) + 1
 
@@ -194,7 +203,9 @@ def finalize_group_row(row: Dict[str, Any]) -> Dict[str, Any]:
     finalized["model_behavior_anomaly_rate"] = safe_rate(row["model_behavior_anomaly"], episodes)
     finalized["diagnostic_flag_rate"] = safe_rate(row["diagnostic_flag"], episodes)
     finalized["system_data_error_rate"] = safe_rate(row["system_data_error"], episodes)
+    finalized["terminal_not_closed_rate"] = safe_rate(row["terminal_not_closed"], episodes)
     finalized["deadlock_rate"] = safe_rate(row["deadlock"], episodes)
+    finalized["rational_impasse_rate"] = safe_rate(row["rational_impasse"], episodes)
     finalized["avg_turns"] = round(row["turns_total"] / episodes, 2) if episodes else 0.0
     finalized["avg_final_price"] = safe_money_mean(row["_final_prices"])
     finalized["avg_profit"] = safe_money_mean(row["_profits"])
@@ -214,6 +225,7 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
     analyzed_files = 0
     skipped_data_error = 0
     skipped_system_data_error = 0
+    skipped_terminal_not_closed = 0
     usage_events: List[Dict[str, Any]] = []
     files_with_usage = 0
 
@@ -224,6 +236,8 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
         if result_has_system_data_error(data) and not include_error_files:
             if data.get("data_error"):
                 skipped_data_error += 1
+            if result_has_terminal_not_closed(data) or data.get("terminal_not_closed"):
+                skipped_terminal_not_closed += 1
             skipped_system_data_error += 1
             continue
         analyzed_files += 1
@@ -282,6 +296,7 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
             "terminal_rejection_reopened",
             "negated_price_offer",
             "deadlock",
+            "rational_impasse",
         ]
     )
 
@@ -292,6 +307,7 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
         "analyzed_files": analyzed_files,
         "skipped_data_error": skipped_data_error,
         "skipped_system_data_error": skipped_system_data_error,
+        "skipped_terminal_not_closed": skipped_terminal_not_closed,
         "include_error_files": include_error_files,
         "files_with_usage": files_with_usage,
         "usage_summary": summarize_usage_events(usage_events),
@@ -340,8 +356,10 @@ CSV_FIELDS = [
     "model_error",
     "price_scale_warning",
     "price_scale_repaired",
+    "terminal_not_closed",
     "system_data_error",
     "deadlock",
+    "rational_impasse",
     "accept_rate",
     "clean_deal_rate",
     "overpayment_rate",
@@ -357,7 +375,9 @@ CSV_FIELDS = [
     "model_behavior_anomaly_rate",
     "diagnostic_flag_rate",
     "system_data_error_rate",
+    "terminal_not_closed_rate",
     "deadlock_rate",
+    "rational_impasse_rate",
     "avg_turns",
     "avg_final_price",
     "avg_profit",

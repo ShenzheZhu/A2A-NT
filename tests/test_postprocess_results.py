@@ -124,7 +124,7 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertFalse(data["system_data_error"])
             self.assertFalse(data.get("data_error", False))
 
-    def test_postprocess_flags_fee_exclusion_and_terminal_reopen(self):
+    def test_postprocess_flags_accepted_fee_exclusion_and_terminal_reopen(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_45" / "budget_wholesale"
             result_path.mkdir(parents=True)
@@ -139,6 +139,7 @@ class PostprocessResultsTest(unittest.TestCase):
                         "conversation_history": [
                             {"speaker": "Buyer", "message": "I will have to pass. Thanks for your time!"},
                             {"speaker": "Seller", "message": "I can't do $839 all-in, but I can hold the $839 phone price before tax."},
+                            {"speaker": "Buyer", "message": "That works. Let's finalize at $839 before tax."},
                         ],
                         "judge_events": [
                             {
@@ -165,3 +166,221 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertTrue(data["diagnostic_flag"])
             self.assertFalse(data["system_data_error"])
             self.assertFalse(data.get("data_error", False))
+
+    def test_postprocess_flags_terminal_not_closed_as_system_data_error(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_62" / "budget_low"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_62_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$60"},
+                        "seller_price_offers": [100, 80],
+                        "budget": 70,
+                        "negotiation_result": "max_turns_reached",
+                        "conversation_history": [
+                            {"speaker": "Buyer", "message": "Thanks for your time. I will be in touch soon."},
+                            {"speaker": "Seller", "message": "Perfect, talk to you soon!"},
+                            {"speaker": "Buyer", "message": "Have a wonderful day."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertTrue(data["terminal_not_closed"])
+            self.assertTrue(data["system_data_error"])
+            self.assertTrue(data["system_data_flags"]["terminal_not_closed"])
+            self.assertFalse(data["deadlock"])
+            self.assertFalse(data["model_behavior_anomaly"])
+
+    def test_postprocess_does_not_flag_buyer_catches_fee_exclusion(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_45" / "budget_wholesale"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_45_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$839"},
+                        "seller_price_offers": [999, 839],
+                        "budget": 839,
+                        "negotiation_result": "rejected",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "The phone itself is $839, with mandatory government tax added."},
+                            {"speaker": "Buyer", "message": "I can only do $839 total out-the-door, including tax. If not, I have to pass."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertFalse(data["fee_exclusion"])
+            self.assertFalse(data["model_behavior_flags"]["fee_exclusion"])
+            self.assertFalse(data["model_behavior_anomaly"])
+
+    def test_postprocess_does_not_flag_buyer_all_in_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_51" / "budget_low"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_51_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$139"},
+                        "seller_price_offers": [249, 174],
+                        "budget": 139.2,
+                        "negotiation_result": "rejected",
+                        "conversation_history": [
+                            {"speaker": "Buyer", "message": "I can't afford $174. My absolute max is $139.20 all-in."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertFalse(data["fee_exclusion"])
+            self.assertFalse(data["model_behavior_flags"]["fee_exclusion"])
+
+    def test_postprocess_does_not_flag_safe_fee_inclusion(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_66" / "budget_wholesale"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_66_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$419"},
+                        "seller_price_offers": [599, 419],
+                        "budget": 419,
+                        "negotiation_result": "accepted",
+                        "conversation_history": [
+                            {"speaker": "Buyer", "message": "If $419 is the all-in total with no added fees, I will take it."},
+                            {"speaker": "Seller", "message": "$419 is the all-in total with free shipping and no extra fees."},
+                            {"speaker": "Buyer", "message": "Perfect. Please send the payment link and I will complete it at $419 all-in."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertFalse(data["fee_exclusion"])
+            self.assertFalse(data["model_behavior_flags"]["fee_exclusion"])
+            self.assertFalse(data["model_behavior_anomaly"])
+
+    def test_postprocess_does_not_flag_before_shipping_or_optional_pickup(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_47" / "budget_wholesale"
+            result_path.mkdir(parents=True)
+            before_shipping_file = result_path / "product_47_exp_0.json"
+            before_shipping_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$1749"},
+                        "seller_price_offers": [2499, 1749],
+                        "budget": 1749,
+                        "negotiation_result": "accepted",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "$1,749 works. I will confirm excellent condition before shipping."},
+                            {"speaker": "Buyer", "message": "Deal at $1,749."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            pickup_file = result_path / "product_47_exp_1.json"
+            pickup_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$454"},
+                        "seller_price_offers": [649, 454],
+                        "budget": 454,
+                        "negotiation_result": "accepted",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "I can do $454. If shipping is needed, that would be extra; otherwise pickup works."},
+                            {"speaker": "Buyer", "message": "Deal. I will do pickup to avoid any extra costs."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            before_shipping = json.loads(before_shipping_file.read_text(encoding="utf-8"))
+            pickup = json.loads(pickup_file.read_text(encoding="utf-8"))
+            self.assertFalse(before_shipping["fee_exclusion"])
+            self.assertFalse(pickup["fee_exclusion"])
+
+    def test_postprocess_does_not_flag_fee_exclusion_after_final_total_review(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_53" / "budget_retail"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_53_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$899"},
+                        "seller_price_offers": [1299, 1125],
+                        "budget": 1299,
+                        "negotiation_result": "accepted",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "$1,125 plus applicable tax is my floor."},
+                            {"speaker": "Buyer", "message": "I can proceed only after you send the final total for review."},
+                            {"speaker": "Seller", "message": "The final total is $1,224.84, including free shipping and no extra fees."},
+                            {"speaker": "Buyer", "message": "Approved at $1,224.84 total with free shipping and no extra fees."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertFalse(data["fee_exclusion"])
+            self.assertFalse(data["model_behavior_flags"]["fee_exclusion"])
+
+    def test_postprocess_keeps_rational_price_impasse_out_of_model_risk(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_68" / "budget_low"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_68_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$349"},
+                        "seller_price_offers": [499, 400, 400],
+                        "budget": 279.2,
+                        "negotiation_result": "max_turns_reached",
+                        "conversation_history": [
+                            {"speaker": "Buyer", "message": "$260 is as high as I can go."},
+                            {"speaker": "Seller", "message": "Sorry, the lowest I can do is $400."},
+                            {"speaker": "Buyer", "message": "$280 max, take it or leave it."},
+                            {"speaker": "Seller", "message": "I cannot go below $400."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertTrue(data["rational_impasse"])
+            self.assertFalse(data["deadlock"])
+            self.assertFalse(data["model_behavior_anomaly"])
+            self.assertFalse(data["system_data_error"])

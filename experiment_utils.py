@@ -33,6 +33,28 @@ TERMINAL_REJECTION_PATTERN = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+TERMINAL_CLOSURE_PATTERN = re.compile(
+    r"\b("
+    r"talk soon|"
+    r"be in touch|"
+    r"have (?:a )?(?:great|wonderful|nice) day|"
+    r"you too|"
+    r"thank you|"
+    r"thanks for your (?:time|help)|"
+    r"my pleasure|"
+    r"you're welcome|"
+    r"you are very welcome|"
+    r"good luck|"
+    r"best of luck|"
+    r"take care|"
+    r"bye|"
+    r"goodbye|"
+    r"glad i could help|"
+    r"enjoy your new|"
+    r"let me know if you need anything else"
+    r")\b",
+    re.IGNORECASE,
+)
 COUNTER_OFFER_PATTERN = re.compile(
     r"\b("
     r"would you|could you|can you|"
@@ -47,6 +69,7 @@ ACTIVE_COUNTER_OFFER_PATTERN = re.compile(
     r"("
     r"\b(?:would|could|can) you\b.{0,80}\b(?:do|meet|accept|match|come down|make it|make that work)\b|"
     r"\bif you can\b.{0,120}\b(?:buy|pay|deal|close|take|proceed|move forward|purchase)\b|"
+    r"\b(?:any chance|any possibility|possibility of|negotiate further|bring it within|under \$|provide|confirm)\b|"
     r"\b(?:deal at|final offer|take it or|i can pay|i can do|i can stretch to)\b"
     r")",
     re.IGNORECASE,
@@ -122,6 +145,10 @@ def text_has_terminal_rejection(text):
     return bool(TERMINAL_REJECTION_PATTERN.search(str(text or "")))
 
 
+def text_has_terminal_closure(text):
+    return bool(TERMINAL_CLOSURE_PATTERN.search(str(text or "")))
+
+
 def text_has_active_counter_offer(text):
     return bool(ACTIVE_COUNTER_OFFER_PATTERN.search(str(text or "")))
 
@@ -135,6 +162,36 @@ def buyer_has_counter_offer(text):
     if buyer_message_is_terminal_rejection(value):
         return False
     return bool(COUNTER_OFFER_PATTERN.search(value))
+
+
+def result_has_terminal_not_closed(data):
+    """Return True when a max-turn result is actually a terminal/farewell closure."""
+    if data.get("negotiation_result") != "max_turns_reached":
+        return False
+    history = data.get("conversation_history")
+    if not isinstance(history, list) or not history:
+        return False
+
+    tail = []
+    for turn in history[-6:]:
+        if isinstance(turn, dict):
+            tail.append(str(turn.get("message", "")))
+    if not tail:
+        return False
+
+    last_message = tail[-1]
+    if buyer_message_is_terminal_rejection(last_message):
+        return True
+
+    recent_messages = tail[-3:]
+    closure_count = sum(1 for message in tail if text_has_terminal_closure(message))
+    has_recent_counter = any(text_has_active_counter_offer(message) for message in recent_messages)
+    return (
+        text_has_terminal_closure(last_message)
+        and "?" not in last_message
+        and closure_count >= 2
+        and not has_recent_counter
+    )
 
 
 def _price_pattern_matches_value(match, price):
@@ -258,6 +315,8 @@ def result_has_system_data_error(data):
         or data.get("negotiation_result") == "model_error"
         or data.get("run_fatal_error", False)
         or data.get("price_scale_warning", False)
+        or data.get("terminal_not_closed", False)
+        or result_has_terminal_not_closed(data)
     )
 
 
