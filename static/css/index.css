@@ -218,6 +218,10 @@ h3 {
   color: #fffdfa;
 }
 
+.details-button {
+  white-space: nowrap;
+}
+
 .author-block {
   width: min(920px, 100%);
   margin: 0 auto;
@@ -295,6 +299,12 @@ h3 {
   align-items: end;
 }
 
+.section-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
 .section-heading p,
 .abstract-copy p {
   color: var(--muted);
@@ -368,6 +378,40 @@ h3 {
   gap: 18px;
   align-items: stretch;
   margin-bottom: 22px;
+}
+
+.leaderboard-tabs {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #faf9f7;
+}
+
+.leaderboard-tabs button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 14px;
+  background: transparent;
+  color: #5b625f;
+  font-family: "Google Sans", "Noto Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.leaderboard-tabs button:hover,
+.leaderboard-tabs button:focus-visible {
+  color: var(--blue-dark);
+  outline: none;
+}
+
+.leaderboard-tabs button.active {
+  background: var(--blue);
+  color: #ffffff;
 }
 
 .sort-control,
@@ -444,7 +488,7 @@ h3 {
 
 table {
   width: 100%;
-  min-width: 760px;
+  min-width: 1080px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -486,9 +530,133 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 
+.optional-leaderboard-column:empty {
+  display: none;
+}
+
 .sorted-metric {
   color: var(--blue-dark);
   background: #f7fbfc;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+.details-modal[hidden] {
+  display: none;
+}
+
+.details-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.details-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(48, 53, 53, 0.34);
+  cursor: pointer;
+}
+
+.details-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(820px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: 0 28px 80px rgba(48, 53, 53, 0.18);
+}
+
+.details-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.details-close:hover,
+.details-close:focus-visible {
+  color: var(--blue-dark);
+  outline: none;
+}
+
+.details-dialog h2 {
+  margin-right: 48px;
+  margin-bottom: 20px;
+  font-size: 30px;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.details-item {
+  min-height: 94px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #faf9f7;
+}
+
+.details-item span {
+  color: var(--muted);
+}
+
+.details-item span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.details-item strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.details-models {
+  display: block;
+}
+
+.details-models > div {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.details-models h3 {
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.details-models p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .risk-block {
@@ -508,8 +676,16 @@ tbody tr:last-child td {
   grid-template-columns: minmax(320px, 1.25fr) minmax(270px, 0.75fr);
 }
 
+.risk-block.risk-behavior-block {
+  grid-template-columns: 1fr;
+}
+
 .risk-block.reverse .risk-copy {
   order: 2;
+}
+
+.risk-block.risk-behavior-block .risk-copy {
+  max-width: 820px;
 }
 
 .risk-block figure {
@@ -551,7 +727,8 @@ tbody tr:last-child td {
   margin-top: 16px;
 }
 
-.risk-cards article {
+.risk-cards article,
+.risk-case-card {
   min-height: 198px;
   padding: 20px;
   border: 1px solid var(--line);
@@ -565,15 +742,52 @@ tbody tr:last-child td {
   font-size: 15px;
 }
 
+.risk-case-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.risk-case-card:hover,
+.risk-case-card:focus-visible {
+  border-color: #c9c4bc;
+  box-shadow: 0 18px 42px rgba(67, 61, 52, 0.1);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.risk-card-kicker {
+  margin-bottom: 8px;
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.risk-card-action {
+  margin-top: auto;
+  color: var(--blue-dark);
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .risk-behavior-cards {
   gap: 10px;
   margin-top: 0;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.risk-behavior-cards article {
-  min-height: 126px;
-  padding: 14px 12px;
+.risk-behavior-cards article,
+.risk-behavior-cards .risk-case-card {
+  min-height: 118px;
+  padding: 15px 14px;
 }
 
 .risk-behavior-cards h3 {
@@ -584,6 +798,154 @@ tbody tr:last-child td {
 .risk-behavior-cards p {
   font-size: 12px;
   line-height: 1.35;
+}
+
+.risk-case-dialog {
+  width: min(860px, 100%);
+}
+
+.risk-case-summary {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #faf9f7;
+}
+
+.risk-case-summary span {
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.risk-case-summary p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.risk-case-variants[hidden] {
+  display: none;
+}
+
+.risk-case-variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.risk-case-variants button {
+  min-height: 36px;
+  border: 1px solid #d8cfc8;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--panel);
+  color: #5b625f;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.risk-case-variants button:hover,
+.risk-case-variants button:focus-visible {
+  border-color: var(--blue);
+  color: var(--blue-dark);
+  outline: none;
+}
+
+.risk-case-variants button.active {
+  border-color: var(--blue);
+  background: #edf5f7;
+  color: var(--blue-dark);
+}
+
+.risk-dialogue-shell {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fbfaf8;
+}
+
+.risk-stream-state {
+  min-height: 38px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.risk-dialogue {
+  display: grid;
+  gap: 12px;
+  max-height: 390px;
+  overflow: auto;
+  padding: 16px;
+}
+
+.risk-message {
+  width: min(680px, 92%);
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: 0 10px 22px rgba(68, 62, 54, 0.05);
+  animation: message-pop 180ms ease-out both;
+}
+
+.risk-message.seller {
+  justify-self: end;
+  border-color: #d8cfc8;
+  background: #fffdfb;
+}
+
+.risk-message.buyer {
+  justify-self: start;
+  border-color: #d7e2e6;
+  background: #fbfdfe;
+}
+
+.risk-message span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--blue-dark);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.risk-message.seller span {
+  color: var(--amber);
+}
+
+.risk-message p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.risk-highlight {
+  padding: 1px 3px;
+  border-radius: 4px;
+  background: #f7dedf;
+  color: #8f3f46;
+  font-weight: 900;
+}
+
+@keyframes message-pop {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .resource-grid {
@@ -694,10 +1056,25 @@ tbody tr:last-child td {
   .section-heading.split,
   .leaderboard-controls,
   .metric-note,
+  .details-grid,
+  .details-models,
   .risk-block,
   .risk-block.reverse,
   .resource-grid {
     grid-template-columns: 1fr;
+  }
+
+  .section-actions {
+    justify-content: flex-start;
+  }
+
+  .leaderboard-tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  .leaderboard-tabs button {
+    flex: 1;
   }
 
   .risk-block.reverse .risk-copy {
@@ -740,12 +1117,14 @@ tbody tr:last-child td {
   .risk-block,
   .sort-control,
   .metric-note,
+  .details-dialog,
   .wide-figure,
   .hero-visual {
     padding: 12px;
   }
 
-  .risk-cards article {
+  .risk-cards article,
+  .risk-case-card {
     min-height: auto;
   }
 

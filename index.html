@@ -36,8 +36,8 @@
       </button>
       <div class="nav-links">
         <a href="#framework">Framework</a>
-        <a href="#leaderboard">Leaderboard</a>
         <a href="#risks">Risks</a>
+        <a href="#leaderboard">Leaderboard</a>
         <a href="#resources">Resources</a>
         <a href="#citation">Citation</a>
       </div>
@@ -115,7 +115,7 @@
           </div>
           <div class="stat-item">
             <strong>Risk labels</strong>
-            <span>Overpayment, constraint violation, deadlock, early settlement</span>
+            <span>Fee exclusion, refusal, constraint violation, substitution, stall</span>
           </div>
         </div>
       </section>
@@ -131,49 +131,6 @@
         <figure class="wide-figure">
           <img src="./static/images/asset_agent/workflow.png" alt="Agent-to-agent negotiation and transaction framework">
         </figure>
-      </section>
-
-      <section class="section" id="leaderboard">
-        <div class="section-heading split">
-          <div>
-            <p class="eyebrow">Leaderboard</p>
-            <h2>Ranked negotiation performance</h2>
-          </div>
-          <p>We rank the released A2A-NT model suite by sorting the same leaderboard table with one selected metric: Relative Profit, Seller PRR, or Buyer PRR.</p>
-        </div>
-
-        <div class="leaderboard-controls">
-          <div class="sort-control">
-            <label for="leaderboard-sort-select">Sort by</label>
-            <select id="leaderboard-sort-select" aria-label="Sort leaderboard by metric">
-              <option value="relativeProfit">Relative Profit</option>
-              <option value="sellerPrr">Seller PRR</option>
-              <option value="buyerPrr">Buyer PRR</option>
-            </select>
-          </div>
-          <div class="metric-note">
-            <div>
-              <h3 id="leaderboard-metric-title">Relative Profit</h3>
-              <p class="status-pill" id="leaderboard-metric-rule">Higher is better</p>
-            </div>
-            <p id="leaderboard-metric-copy">Seller-side total profit, normalized against GPT-3.5 as the 1.0x baseline.</p>
-          </div>
-        </div>
-
-        <div class="table-shell" aria-label="A2A-NT model leaderboard">
-          <table>
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Model</th>
-                <th data-sort-column="relativeProfit">Relative Profit</th>
-                <th data-sort-column="sellerPrr">Seller PRR</th>
-                <th data-sort-column="buyerPrr">Buyer PRR</th>
-              </tr>
-            </thead>
-            <tbody id="leaderboard-table-body"></tbody>
-          </table>
-        </div>
       </section>
 
       <section class="section" id="risks">
@@ -193,13 +150,21 @@
           </figure>
         </div>
 
-        <div class="risk-block reverse">
+        <div class="risk-block risk-behavior-block">
           <div class="risk-copy">
             <span class="risk-label">Risk 2</span>
             <h3>Anomaly Behavior</h3>
-            <p>Even when agents reach a deal, anomaly behavior can violate constraints, cause overpayment, stall negotiations, or lead buyers to settle too early.</p>
+            <p id="risk-behavior-summary">Even when agents reach a deal, anomaly behavior can violate constraints, omit required fees, substitute products, refuse feasible offers, or stall negotiations.</p>
           </div>
-          <div class="risk-cards risk-behavior-cards" aria-label="Risk 2 anomaly behavior types">
+          <div class="risk-cards risk-behavior-cards" id="risk-behavior-cards" aria-label="Risk 2 anomaly behavior types">
+            <article>
+              <h3>Fee exclusion</h3>
+              <p>Agents treat mandatory fees, tax, or shipping as outside the negotiated price.</p>
+            </article>
+            <article>
+              <h3>Irrational refusal</h3>
+              <p>Agents reject feasible offers without a clear constraint conflict.</p>
+            </article>
             <article>
               <h3>Out-of-budget</h3>
               <p>Buyer agents accept prices above the user budget.</p>
@@ -209,18 +174,71 @@
               <p>Seller agents accept prices below wholesale cost.</p>
             </article>
             <article>
-              <h3>Overpayment</h3>
-              <p>Buyers accept or offer above the expected market value.</p>
+              <h3>Product substitution</h3>
+              <p>Agents switch the negotiated product or refer to the wrong item.</p>
             </article>
             <article>
-              <h3>Negotiation deadlock</h3>
-              <p>Dialogue loops continue without productive progress.</p>
-            </article>
-            <article>
-              <h3>Early settlement</h3>
-              <p>High-budget buyers compromise too early instead of negotiating.</p>
+              <h3>Stalled negotiation</h3>
+              <p>Dialogues continue or drift without reaching an accepted or rejected transaction.</p>
             </article>
           </div>
+        </div>
+      </section>
+
+      <section class="section" id="leaderboard">
+        <div class="section-heading split">
+          <div>
+            <p class="eyebrow">Leaderboard</p>
+            <h2>Ranked negotiation and risk performance</h2>
+          </div>
+          <div class="section-actions">
+            <button class="button details-button" id="experiment-details-button" type="button" aria-haspopup="dialog" aria-controls="experiment-details-modal">
+              <i class="fas fa-info-circle" aria-hidden="true"></i>
+              <span>Experiment details</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="leaderboard-tabs" aria-label="Leaderboard view">
+          <button class="active" type="button" data-leaderboard-view="performance">Negotiation Performance</button>
+          <button type="button" data-leaderboard-view="risk">Risk Performance</button>
+        </div>
+
+        <div class="leaderboard-controls">
+          <div class="sort-control">
+            <label for="leaderboard-sort-select">Sort by</label>
+            <select id="leaderboard-sort-select" aria-label="Sort leaderboard by metric">
+              <option value="relativeProfit">Relative Profit</option>
+              <option value="sellerPrr">Seller PRR</option>
+              <option value="buyerPrr">Buyer PRR</option>
+            </select>
+          </div>
+          <div class="metric-note">
+            <div>
+              <h3 id="leaderboard-metric-title">Relative Profit</h3>
+              <p class="status-pill" id="leaderboard-metric-rule">Higher is better</p>
+            </div>
+            <p id="leaderboard-metric-copy">Seller-side average profit from clean deals, normalized against the legacy bridge baseline.</p>
+          </div>
+        </div>
+
+        <div class="table-shell" aria-label="A2A-NT model leaderboard">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Model</th>
+                <th id="leaderboard-col-primary" data-sort-column="relativeProfit">Relative Profit</th>
+                <th id="leaderboard-col-secondary" data-sort-column="sellerPrr">Seller PRR</th>
+                <th id="leaderboard-col-tertiary" data-sort-column="buyerPrr">Buyer PRR</th>
+                <th id="leaderboard-col-quaternary" class="optional-leaderboard-column"></th>
+                <th id="leaderboard-col-quinary" class="optional-leaderboard-column"></th>
+                <th id="leaderboard-col-senary" class="optional-leaderboard-column"></th>
+                <th id="leaderboard-col-septenary" class="optional-leaderboard-column"></th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-table-body"></tbody>
+          </table>
         </div>
       </section>
 
@@ -268,11 +286,50 @@
       </section>
     </main>
 
+    <div class="details-modal" id="experiment-details-modal" hidden>
+      <button class="details-backdrop" type="button" aria-label="Close experiment details" data-close-experiment-details></button>
+      <section class="details-dialog" role="dialog" aria-modal="true" aria-labelledby="experiment-details-title">
+        <button class="details-close" type="button" aria-label="Close experiment details" data-close-experiment-details>
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+        <p class="eyebrow">Experiment details</p>
+        <h2 id="experiment-details-title">A2A-NT sweep setting</h2>
+        <div class="details-grid" id="experiment-details-grid"></div>
+        <div class="details-models">
+          <div>
+            <h3>Models</h3>
+            <p id="experiment-model-set"></p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="details-modal risk-case-modal" id="risk-case-modal" hidden>
+      <button class="details-backdrop" type="button" aria-label="Close risk case" data-close-risk-case></button>
+      <section class="details-dialog risk-case-dialog" role="dialog" aria-modal="true" aria-labelledby="risk-case-title">
+        <button class="details-close" type="button" aria-label="Close risk case" data-close-risk-case>
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+        <p class="eyebrow">Risk case</p>
+        <h2 id="risk-case-title">Risk behavior</h2>
+        <div class="risk-case-summary">
+          <span id="risk-case-trigger"></span>
+          <p id="risk-case-why"></p>
+        </div>
+        <div class="risk-case-variants" id="risk-case-variants" aria-label="Stalled negotiation case types"></div>
+        <div class="risk-dialogue-shell">
+          <div class="risk-stream-state" id="risk-case-stream-state">Streaming dialogue...</div>
+          <div class="risk-dialogue" id="risk-case-dialogue" aria-live="polite"></div>
+        </div>
+      </section>
+    </div>
+
     <footer class="site-footer">
       <span>A2A-NT</span>
       <span>Agent-to-agent negotiation benchmark for consumer markets.</span>
     </footer>
 
+    <script src="./static/js/leaderboard-data.js"></script>
     <script src="./static/js/index.js"></script>
   </body>
 </html>
