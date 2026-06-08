@@ -127,6 +127,56 @@ class ConversationJudgeTest(unittest.TestCase):
         self.assertEqual(conversation.judge_events[-1]["guarded_label"], "CONTINUE")
         self.assertEqual(conversation.judge_events[-1]["override_reason"], "buyer_counter_offer")
 
+    def test_terminal_rejection_with_absolute_max_stays_rejected(self):
+        conversation = make_conversation(summary_response="REJECTION", budget=211.5, seller_offer=225)
+        conversation.conversation_history = [
+            {"speaker": "Seller", "message": "The best I can do is $225."},
+            {
+                "speaker": "Buyer",
+                "message": "Thank you, but I cannot afford $225. My absolute maximum is $205, so I will have to pass. Thanks for your time!",
+            },
+        ]
+
+        completed = conversation.evaluate_negotiation_state()
+
+        self.assertTrue(completed)
+        self.assertEqual(conversation.negotiation_result, "rejected")
+        self.assertEqual(conversation.judge_events[-1]["guarded_label"], "REJECTION")
+        self.assertIsNone(conversation.judge_events[-1]["override_reason"])
+
+    def test_take_it_or_pass_counter_offer_can_continue(self):
+        conversation = make_conversation(summary_response="REJECTION", budget=211.5, seller_offer=225)
+        conversation.conversation_history = [
+            {"speaker": "Seller", "message": "The best I can do is $225."},
+            {"speaker": "Buyer", "message": "$205 is my final offer. Take it or I will have to pass."},
+        ]
+
+        completed = conversation.evaluate_negotiation_state()
+
+        self.assertFalse(completed)
+        self.assertEqual(conversation.judge_events[-1]["guarded_label"], "CONTINUE")
+        self.assertEqual(conversation.judge_events[-1]["override_reason"], "buyer_counter_offer")
+
+    def test_rejected_price_mention_is_not_extracted_as_offer(self):
+        conversation = make_conversation(summary_response="$906")
+
+        price = conversation.extract_price_from_seller_message(
+            "I can't go down to $906 on this ThinkPad, but if your budget changes I would be happy to work with you."
+        )
+
+        self.assertIsNone(price)
+        self.assertEqual(conversation.price_extraction_events[-1]["status"], "rejected_price_mention")
+
+    def test_before_tax_positive_offer_is_still_extracted(self):
+        conversation = make_conversation(summary_response="$839")
+
+        price = conversation.extract_price_from_seller_message(
+            "I can't do $839 all-in, but I can hold the $839 phone price before any applicable tax or shipping."
+        )
+
+        self.assertEqual(price, 839)
+        self.assertEqual(conversation.price_extraction_events[-1]["status"], "parsed")
+
     def test_price_extraction_empty_summary_uses_single_price_fallback(self):
         conversation = make_conversation(summary_response=None)
 
