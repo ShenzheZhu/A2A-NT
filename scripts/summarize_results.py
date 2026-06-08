@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from MarkAnomaly import PostDataProcessor
-from experiment_utils import parse_price
+from experiment_utils import parse_price, summarize_usage_events
 
 
 def iter_result_files(results_dir: Path):
@@ -177,6 +177,8 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
     total_files = 0
     analyzed_files = 0
     skipped_data_error = 0
+    usage_events: List[Dict[str, Any]] = []
+    files_with_usage = 0
 
     for path in iter_result_files(results_dir):
         with path.open("r", encoding="utf-8") as f:
@@ -186,6 +188,10 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
             skipped_data_error += 1
             continue
         analyzed_files += 1
+        file_usage_events = data.get("usage_events")
+        if isinstance(file_usage_events, list) and file_usage_events:
+            files_with_usage += 1
+            usage_events.extend(event for event in file_usage_events if isinstance(event, dict))
 
         models = data.get("models", {})
         seller = models.get("seller", "unknown")
@@ -235,6 +241,8 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
         "analyzed_files": analyzed_files,
         "skipped_data_error": skipped_data_error,
         "include_error_files": include_error_files,
+        "files_with_usage": files_with_usage,
+        "usage_summary": summarize_usage_events(usage_events),
         "pairs": pair_rows,
         "seller_leaderboard": seller_rows,
         "buyer_leaderboard": buyer_rows,

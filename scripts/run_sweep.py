@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from experiment_utils import count_valid_results, load_products, parse_csv, safe_path_name
+from experiment_utils import aggregate_usage_from_results, count_valid_results, load_products, parse_csv, safe_path_name
 from LanguageModel import RUN_FATAL_EXIT_CODE
 
 
@@ -163,6 +163,10 @@ class SweepManifest:
                 self.payload["output_dir"],
                 include_error_files=False,
             )
+            self.payload["usage_summary"] = aggregate_usage_from_results(
+                self.payload["output_dir"],
+                include_error_files=True,
+            )
             self.write()
 
 
@@ -238,6 +242,7 @@ def make_session(plan, args, pairs, products_file, product_count, budgets, num_e
         "pair_count": len(pairs),
         "expected_conversation_cells": len(pairs) * product_count * len(budgets) * num_experiments,
         "completed_result_json_count": count_valid_results(output_dir, include_error_files=False),
+        "usage_summary": aggregate_usage_from_results(output_dir, include_error_files=True),
         "output_dir": output_dir,
         "parallel_workers": args.parallel_workers,
         "continue_on_error": args.continue_on_error,
@@ -380,6 +385,10 @@ def main():
             completed_result_json_count=count_valid_results(
                 args.output_dir or plan["output_dir"],
                 include_error_files=False,
+            ),
+            usage_summary=aggregate_usage_from_results(
+                args.output_dir or plan["output_dir"],
+                include_error_files=True,
             ),
         )
 

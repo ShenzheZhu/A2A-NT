@@ -12,13 +12,17 @@ class FakeProviderError(Exception):
         self.status_code = status_code
 
 
-def fake_response(content):
+def fake_response(content, usage=None, hidden_params=None):
     return SimpleNamespace(
         choices=[
             SimpleNamespace(
                 message=SimpleNamespace(content=content),
+                finish_reason="stop",
             )
-        ]
+        ],
+        usage=usage,
+        _hidden_params=hidden_params or {},
+        model="provider/model-response",
     )
 
 
@@ -74,6 +78,64 @@ class LanguageModelTest(unittest.TestCase):
 
         self.assertEqual(model.get_response("hello"), "ok")
         self.assertEqual(len(calls), 2)
+
+    def test_success_records_usage_metadata(self):
+        def respond(**_kwargs):
+            return fake_response(
+                "ok",
+                usage=SimpleNamespace(prompt_tokens=11, completion_tokens=7, total_tokens=18),
+                hidden_params={"response_cost": 0.00123, "custom_llm_provider": "openrouter"},
+            )
+
+        LanguageModel._LITELLM_COMPLETION = respond
+        model = ModelGate("local-test-model")
+        model._rate_limit_delay = 0
+
+        self.assertEqual(model.get_response("hello"), "ok")
+
+        self.assertEqual(model.last_usage_event["requested_model"], "local-test-model")
+        self.assertEqual(model.last_usage_event["model"], "local-test-model")
+        self.assertEqual(model.last_usage_event["response_model"], "provider/model-response")
+        self.assertEqual(model.last_usage_event["provider"], "openrouter")
+        self.assertEqual(model.last_usage_event["prompt_tokens"], 11)
+        self.assertEqual(model.last_usage_event["completion_tokens"], 7)
+        self.assertEqual(model.last_usage_event["total_tokens"], 18)
+        self.assertEqual(model.last_usage_event["estimated_cost_usd"], 0.00123)
+        self.assertTrue(model.last_usage_event["usage_available"])
+
+    def test_consume_usage_events_clears_last_call_events(self):
+        def respond(**_kwargs):
+            return fake_response("ok", usage={"prompt_tokens": 1, "completion_tokens": 2})
+
+        LanguageModel._LITELLM_COMPLETION = respond
+        model = ModelGate("local-test-model")
+        model._rate_limit_delay = 0
+
+        model.get_response("hello")
+        events = model.consume_usage_events()
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["total_tokens"], 3)
+        self.assertEqual(model.last_call_usage_events, [])
+        self.assertIsNone(model.last_usage_event)
+
+    def test_success_accepts_dict_response_shape(self):
+        def respond(**_kwargs):
+            return {
+                "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 2, "completion_tokens": 3},
+                "_hidden_params": {"response_cost": 0.005},
+                "model": "dict-model-response",
+            }
+
+        LanguageModel._LITELLM_COMPLETION = respond
+        model = ModelGate("local-test-model")
+        model._rate_limit_delay = 0
+
+        self.assertEqual(model.get_response("hello"), "ok")
+        self.assertEqual(model.last_usage_event["response_model"], "dict-model-response")
+        self.assertEqual(model.last_usage_event["total_tokens"], 5)
+        self.assertEqual(model.last_usage_event["estimated_cost_usd"], 0.005)
 
 
 if __name__ == "__main__":

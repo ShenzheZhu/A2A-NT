@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -192,12 +193,31 @@ class ConversationJudgeTest(unittest.TestCase):
             {"speaker": "Seller", "message": "I can do $225."},
             {"speaker": "Buyer", "message": "Deal at $225."},
         ]
+        conversation.usage_events = [
+            {
+                "stage": "buyer_intro",
+                "role": "buyer",
+                "model": "fake-buyer",
+                "prompt_tokens": 3,
+                "completion_tokens": 4,
+                "total_tokens": 7,
+                "estimated_cost_usd": 0.0007,
+                "usage_available": True,
+            }
+        ]
         conversation.evaluate_negotiation_state()
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             conversation.save_conversation(tmp_dir)
             output = Path(tmp_dir) / "product_1_exp_0.json"
-            self.assertIn('"judge_events"', output.read_text(encoding="utf-8"))
+            data = output.read_text(encoding="utf-8")
+            self.assertIn('"judge_events"', data)
+            self.assertIn('"usage_events"', data)
+            self.assertIn('"usage_summary"', data)
+            payload = json.loads(data)
+            self.assertEqual(payload["usage_summary"]["calls"], 1)
+            self.assertEqual(payload["usage_summary"]["total_tokens"], 7)
+            self.assertEqual(payload["usage_summary"]["by_role"]["buyer"]["calls"], 1)
             self.assertEqual(list(Path(tmp_dir).glob("*.tmp.*")), [])
 
     def test_buyer_intro_failure_is_saved_as_data_error(self):
