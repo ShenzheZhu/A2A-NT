@@ -10,6 +10,7 @@ from experiment_utils import (
     price_is_rejected_without_positive_offer,
     price_candidates_from_text,
     prices_match,
+    summarize_usage_events,
 )
 
 JUDGE_LABELS = {"ACCEPTANCE", "REJECTION", "CONTINUE"}
@@ -79,6 +80,7 @@ class Conversation:
         self.seller_price_offers = []
         self.price_extraction_events = []
         self.judge_events = []
+        self.usage_events = []
         # Add the original retail price as the first element
         retail_price_str = product_data["Retail Price"]
         self.seller_price_offers.append(parse_price(retail_price_str))
@@ -123,6 +125,18 @@ class Conversation:
         if self.error is None:
             self.error = error_event
         return error_event
+
+    def _record_usage(self, stage, role, model):
+        consume = getattr(model, "consume_usage_events", None)
+        if not callable(consume):
+            return
+        for event in consume():
+            usage_event = dict(event)
+            usage_event.update({"stage": stage, "role": role})
+            self.usage_events.append(usage_event)
+
+    def usage_summary(self):
+        return summarize_usage_events(self.usage_events)
         
     def format_buyer_prompt(self):
         """Format a prompt for the buyer agent."""
@@ -257,8 +271,11 @@ class Conversation:
         try:
             raw_extracted_response = self.summary_model.get_response(prompt)
         except ModelCallError as exc:
+            self._record_usage("price_extraction", "summary", self.summary_model)
             summary_error = exc
             raw_extracted_response = None
+        else:
+            self._record_usage("price_extraction", "summary", self.summary_model)
         extracted_response = "" if raw_extracted_response is None else raw_extracted_response.strip()
         
         event = {
@@ -410,6 +427,7 @@ class Conversation:
         try:
             raw_confirmation = self.judge_confirmation_model.get_response(prompt)
         except ModelCallError as exc:
+            self._record_usage("judge_confirmation", "summary", self.judge_confirmation_model)
             error_event = self._model_error_event(exc, stage="judge_confirmation", role="summary")
             event["confirmation_error"] = error_event
             self.data_error = True
@@ -418,6 +436,8 @@ class Conversation:
             if self.error is None:
                 self.error = error_event
             return current_label
+        else:
+            self._record_usage("judge_confirmation", "summary", self.judge_confirmation_model)
 
         confirmation = "" if raw_confirmation is None else raw_confirmation.strip()
         confirmation_label, confirmation_warning = normalize_judge_label(confirmation)
@@ -470,6 +490,7 @@ class Conversation:
         try:
             raw_evaluation = self.summary_model.get_response(evaluation_prompt)
         except ModelCallError as exc:
+            self._record_usage("judge", "summary", self.summary_model)
             raw_evaluation = ""
             summary_error = self._model_error_event(exc, stage="judge", role="summary")
             self.data_error = True
@@ -478,6 +499,7 @@ class Conversation:
             if self.error is None:
                 self.error = summary_error
         else:
+            self._record_usage("judge", "summary", self.summary_model)
             summary_error = None
         evaluation = "" if raw_evaluation is None else raw_evaluation.strip()
         normalized_label, normalize_warning = normalize_judge_label(evaluation)
@@ -536,11 +558,14 @@ class Conversation:
         try:
             buyer_intro = self.buyer_model.get_response(intro_prompt)
         except ModelCallError as exc:
+            self._record_usage("buyer_intro", "buyer", self.buyer_model)
             self.current_price_offer = self.seller_price_offers[0]
             self.completed_turns = 0
             self._record_data_error(exc, stage="buyer_intro", role="buyer")
             print(f"\n[Initial] Buyer model failed: {exc.category}")
             return self.conversation_history
+        else:
+            self._record_usage("buyer_intro", "buyer", self.buyer_model)
 
         if buyer_intro is None or not str(buyer_intro).strip():
             self.current_price_offer = self.seller_price_offers[0]
@@ -567,10 +592,13 @@ class Conversation:
             try:
                 seller_response = self.seller_model.get_chat_response(seller_messages)
             except ModelCallError as exc:
+                self._record_usage(f"turn_{turn_count}_seller", "seller", self.seller_model)
                 self.completed_turns = turn_count - 1
                 self._record_data_error(exc, stage=f"turn_{turn_count}_seller", role="seller")
                 print(f"\n[Turn {turn_count}] Seller model failed: {exc.category}")
                 break
+            else:
+                self._record_usage(f"turn_{turn_count}_seller", "seller", self.seller_model)
 
             if seller_response is None or not str(seller_response).strip():
                 self.completed_turns = turn_count - 1
@@ -611,10 +639,13 @@ class Conversation:
             try:
                 buyer_response = self.buyer_model.get_chat_response(buyer_messages)
             except ModelCallError as exc:
+                self._record_usage(f"turn_{turn_count}_buyer", "buyer", self.buyer_model)
                 self.completed_turns = turn_count - 1
                 self._record_data_error(exc, stage=f"turn_{turn_count}_buyer", role="buyer")
                 print(f"\n[Turn {turn_count}] Buyer model failed: {exc.category}")
                 break
+            else:
+                self._record_usage(f"turn_{turn_count}_buyer", "buyer", self.buyer_model)
 
             if buyer_response is None or not str(buyer_response).strip():
                 self.completed_turns = turn_count - 1
@@ -674,6 +705,8 @@ class Conversation:
             "seller_price_offers": self.seller_price_offers,
             "price_extraction_events": self.price_extraction_events,
             "judge_events": self.judge_events,
+            "usage_events": self.usage_events,
+            "usage_summary": self.usage_summary(),
             "budget": self.budget,  # Include budget in the saved data
             "budget_scenario": self.budget_scenario,  # Include budget scenario name
             "completed_turns": self.completed_turns,  # Include the actual number of turns

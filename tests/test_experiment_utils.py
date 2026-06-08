@@ -8,6 +8,7 @@ from experiment_utils import (
     count_valid_results,
     extract_price_from_text,
     inspect_result_file,
+    aggregate_usage_from_results,
     next_experiment_number,
     looks_like_no_price,
     parse_int_csv,
@@ -16,6 +17,7 @@ from experiment_utils import (
     safe_path_name,
     select_budget_scenarios,
     select_products,
+    summarize_usage_events,
 )
 
 
@@ -91,6 +93,72 @@ class ExperimentUtilsTest(unittest.TestCase):
             self.assertEqual(count_valid_results(root, product_id=1, include_error_files=True), 2)
             self.assertEqual(next_experiment_number(valid_dir, product_id=1), 3)
             self.assertFalse(inspect_result_file(valid_dir / "product_1_exp_2.json")["valid"])
+
+    def test_summarize_usage_events_groups_by_model_and_role(self):
+        summary = summarize_usage_events(
+            [
+                {
+                    "model": "model-a",
+                    "role": "buyer",
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                    "estimated_cost_usd": 0.01,
+                    "usage_available": True,
+                },
+                {
+                    "model": "model-a",
+                    "role": "summary",
+                    "prompt_tokens": 3,
+                    "completion_tokens": 2,
+                    "total_tokens": 5,
+                    "estimated_cost_usd": 0.002,
+                    "usage_available": True,
+                },
+            ]
+        )
+
+        self.assertEqual(summary["calls"], 2)
+        self.assertEqual(summary["prompt_tokens"], 13)
+        self.assertEqual(summary["completion_tokens"], 7)
+        self.assertEqual(summary["total_tokens"], 20)
+        self.assertEqual(summary["estimated_cost_usd"], 0.012)
+        self.assertEqual(summary["by_model"]["model-a"]["calls"], 2)
+        self.assertEqual(summary["by_role"]["buyer"]["total_tokens"], 15)
+
+    def test_aggregate_usage_from_results_includes_data_error_costs_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            result_dir = root / "seller_a" / "buyer_b" / "product_1" / "budget_mid"
+            result_dir.mkdir(parents=True)
+            result_payload = {
+                "product_id": 1,
+                "experiment_num": 0,
+                "conversation_history": [],
+                "data_error": True,
+                "usage_events": [
+                    {
+                        "model": "model-a",
+                        "role": "seller",
+                        "prompt_tokens": 4,
+                        "completion_tokens": 6,
+                        "estimated_cost_usd": 0.004,
+                        "usage_available": True,
+                    }
+                ],
+            }
+            (result_dir / "product_1_exp_0.json").write_text(json.dumps(result_payload), encoding="utf-8")
+
+            included = aggregate_usage_from_results(root)
+            excluded = aggregate_usage_from_results(root, include_error_files=False)
+
+            self.assertEqual(included["result_files"], 1)
+            self.assertEqual(included["files_with_usage"], 1)
+            self.assertEqual(included["calls"], 1)
+            self.assertEqual(included["total_tokens"], 10)
+            self.assertEqual(included["estimated_cost_usd"], 0.004)
+            self.assertEqual(excluded["result_files"], 0)
+            self.assertEqual(excluded["calls"], 0)
 
 
 if __name__ == "__main__":

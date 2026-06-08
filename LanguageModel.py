@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 
@@ -99,19 +99,110 @@ def _validate_messages(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
 class ModelCallError(RuntimeError):
     """Structured failure from a model provider call."""
 
-    def __init__(self, model: str, category: str, message: str, attempts: int = 0):
+    def __init__(
+        self,
+        model: str,
+        category: str,
+        message: str,
+        attempts: int = 0,
+        usage_events: Optional[List[Dict[str, object]]] = None,
+    ):
         self.model = model
         self.category = category
         self.attempts = attempts
+        self.usage_events = usage_events or []
         super().__init__(f"{category} error for {model} after {attempts} attempt(s): {message}")
 
     def to_dict(self) -> Dict[str, object]:
-        return {
+        payload = {
             "model": self.model,
             "category": self.category,
             "attempts": self.attempts,
             "message": str(self),
         }
+        if self.usage_events:
+            payload["usage_events"] = self.usage_events
+        return payload
+
+
+def _field(value: Any, name: str, default: Any = None) -> Any:
+    if isinstance(value, dict):
+        return value.get(name, default)
+    return getattr(value, name, default)
+
+
+def _number_or_none(value: Any) -> Optional[float]:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _first_number(*values: Any) -> Optional[float]:
+    for value in values:
+        number = _number_or_none(value)
+        if number is not None:
+            return number
+    return None
+
+
+def _token_value(*values: Any) -> Optional[int]:
+    number = _first_number(*values)
+    return int(number) if number is not None else None
+
+
+def extract_usage_metadata(
+    response: Any,
+    requested_model: str,
+    model: str,
+    attempt: int,
+) -> Dict[str, object]:
+    """Extract non-sensitive LiteLLM/provider usage metadata from a response."""
+    usage = _field(response, "usage", {}) or {}
+    hidden_params = _field(response, "_hidden_params", {}) or {}
+
+    prompt_tokens = _token_value(
+        _field(usage, "prompt_tokens"),
+        _field(usage, "input_tokens"),
+    )
+    completion_tokens = _token_value(
+        _field(usage, "completion_tokens"),
+        _field(usage, "output_tokens"),
+    )
+    total_tokens = _token_value(_field(usage, "total_tokens"))
+    if total_tokens is None and prompt_tokens is not None and completion_tokens is not None:
+        total_tokens = prompt_tokens + completion_tokens
+
+    estimated_cost_usd = _first_number(
+        _field(response, "response_cost"),
+        _field(response, "cost"),
+        _field(hidden_params, "response_cost"),
+        _field(hidden_params, "cost"),
+        _field(hidden_params, "litellm_response_cost"),
+    )
+
+    choices = _field(response, "choices", []) or []
+    first_choice = choices[0] if choices else None
+
+    return {
+        "requested_model": requested_model,
+        "model": model,
+        "response_model": _field(response, "model"),
+        "provider": _field(response, "provider") or _field(hidden_params, "custom_llm_provider"),
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+        "estimated_cost_usd": estimated_cost_usd,
+        "usage_available": any(
+            value is not None
+            for value in (prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd)
+        ),
+        "attempt": attempt,
+        "finish_reason": _field(first_choice, "finish_reason"),
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
 
 
 def _status_code_from_exception(exc: Exception) -> Optional[int]:
@@ -223,6 +314,8 @@ class LanguageModel:
         self._max_retries = int(os.getenv("A2ANT_MAX_RETRIES", "5"))
         self.last_call_attempts = 0
         self.last_error_categories = []
+        self.last_usage_event = None
+        self.last_call_usage_events = []
         self._setup_credentials()
 
     def _setup_credentials(self) -> None:
@@ -250,6 +343,8 @@ class LanguageModel:
         retry_delay = 2.0
         self.last_call_attempts = 0
         self.last_error_categories = []
+        self.last_usage_event = None
+        self.last_call_usage_events = []
 
         for attempt in range(1, self._max_retries + 1):
             self.last_call_attempts = attempt
@@ -262,10 +357,21 @@ class LanguageModel:
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
-                if not response or not getattr(response, "choices", None):
+                choices = _field(response, "choices")
+                if not response or not choices:
                     raise ValueError("LiteLLM returned an empty response")
 
-                content = response.choices[0].message.content
+                usage_event = extract_usage_metadata(
+                    response=response,
+                    requested_model=self.requested_model_name,
+                    model=self.model_name,
+                    attempt=attempt,
+                )
+                self.last_usage_event = usage_event
+                self.last_call_usage_events.append(usage_event)
+
+                message = _field(choices[0], "message", {})
+                content = _field(message, "content")
                 if content is None:
                     raise ValueError("LiteLLM response message content is empty")
                 return content
@@ -286,6 +392,7 @@ class LanguageModel:
                         category=category,
                         message=str(exc),
                         attempts=attempt,
+                        usage_events=list(self.last_call_usage_events),
                     ) from exc
                 time.sleep(retry_delay)
                 retry_delay *= 2
@@ -294,7 +401,14 @@ class LanguageModel:
             category="transient",
             message="Retry loop exhausted without a response",
             attempts=self._max_retries,
+            usage_events=list(self.last_call_usage_events),
         )
+
+    def consume_usage_events(self) -> List[Dict[str, object]]:
+        events = list(self.last_call_usage_events)
+        self.last_call_usage_events = []
+        self.last_usage_event = None
+        return events
 
     def get_response(
         self,

@@ -278,6 +278,99 @@ def inspect_result_file(path, include_error_files=False):
     return info
 
 
+def _numeric(value):
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _empty_usage_bucket():
+    return {
+        "calls": 0,
+        "usage_available_calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "estimated_cost_usd": 0.0,
+    }
+
+
+def _add_usage_to_bucket(bucket, event):
+    bucket["calls"] += 1
+    if event.get("usage_available"):
+        bucket["usage_available_calls"] += 1
+
+    prompt_tokens = _numeric(event.get("prompt_tokens"))
+    completion_tokens = _numeric(event.get("completion_tokens"))
+    total_tokens = _numeric(event.get("total_tokens"))
+    if total_tokens is None and prompt_tokens is not None and completion_tokens is not None:
+        total_tokens = prompt_tokens + completion_tokens
+
+    for field, value in (
+        ("prompt_tokens", prompt_tokens),
+        ("completion_tokens", completion_tokens),
+        ("total_tokens", total_tokens),
+    ):
+        if value is not None:
+            bucket[field] += int(value)
+
+    cost = _numeric(event.get("estimated_cost_usd"))
+    if cost is not None:
+        bucket["estimated_cost_usd"] += cost
+
+
+def summarize_usage_events(events):
+    """Aggregate non-sensitive provider usage events."""
+    summary = _empty_usage_bucket()
+    summary["by_model"] = {}
+    summary["by_role"] = {}
+
+    for raw_event in events or []:
+        if not isinstance(raw_event, dict):
+            continue
+        _add_usage_to_bucket(summary, raw_event)
+
+        model = raw_event.get("model") or raw_event.get("requested_model") or "unknown"
+        role = raw_event.get("role") or "unknown"
+        _add_usage_to_bucket(summary["by_model"].setdefault(model, _empty_usage_bucket()), raw_event)
+        _add_usage_to_bucket(summary["by_role"].setdefault(role, _empty_usage_bucket()), raw_event)
+
+    summary["estimated_cost_usd"] = round(summary["estimated_cost_usd"], 8)
+    for group in (summary["by_model"], summary["by_role"]):
+        for bucket in group.values():
+            bucket["estimated_cost_usd"] = round(bucket["estimated_cost_usd"], 8)
+    return summary
+
+
+def aggregate_usage_from_results(result_dir, include_error_files=True):
+    """Aggregate usage events from parseable result JSON files."""
+    events = []
+    result_files = 0
+    files_with_usage = 0
+
+    for path in iter_result_files(result_dir):
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if data.get("data_error") and not include_error_files:
+            continue
+        result_files += 1
+
+        file_events = data.get("usage_events")
+        if isinstance(file_events, list) and file_events:
+            files_with_usage += 1
+            events.extend(file_events)
+
+    summary = summarize_usage_events(events)
+    summary["result_files"] = result_files
+    summary["files_with_usage"] = files_with_usage
+    return summary
+
+
 def count_valid_results(result_dir, product_id=None, include_error_files=False):
     return sum(
         1

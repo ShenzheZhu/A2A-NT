@@ -77,9 +77,9 @@ python3 scripts/run_sweep.py --config configs/sweep_example.json --mode all --pa
 Live sweeps write a manifest under `logs/run_sessions/{run_id}/manifest.json`
 and per-pair logs under `logs/run_sessions/{run_id}/pairs/`. The manifest tracks
 the expected conversation cell count, completed valid JSON count, running pairs,
-failed pairs, and output directory. Resume logic counts only parseable result
-JSON files without `data_error` unless `--include-error-files` is explicitly
-provided.
+failed pairs, output directory, and provider usage totals when LiteLLM returns
+usage metadata. Resume logic counts only parseable result JSON files without
+`data_error` unless `--include-error-files` is explicitly provided.
 
 Provider key-limit, quota/billing, auth, invalid-model, and bad-request errors
 are treated as run-fatal. The current conversation is saved as evidence, the
@@ -155,6 +155,12 @@ Each result file contains the conversation history, extracted seller offers, neg
 
 Result files also include `price_extraction_events`, which record the summary-model extraction response, parsed price, parser source, unparsed cases, and rejected price mentions. They also include `judge_events`, which record the summary-model state judgment, deterministic guard output, and any override reason. Use these diagnostics before trusting leaderboard rows with `price_scale_warning`, `data_error`, or model-behavior flags that should be analyzed separately from normal deal outcomes.
 
+New result files also include `usage_events` and `usage_summary` with
+non-sensitive provider metadata such as model id, role, stage, token counts, and
+LiteLLM/OpenRouter estimated cost when available. Historical result files that
+lack these fields cannot be cost-audited from local artifacts alone; use the
+provider dashboard or billing export for those runs.
+
 Summarize a run:
 
 ```bash
@@ -178,6 +184,11 @@ model-behavior flags directly from result JSON files. By default, files marked
 runs. Clean-deal metrics exclude accepted rows with `out_of_budget`,
 `product_substitution`, or `fee_exclusion` so leaderboard rows are not silently
 contaminated by known model-behavior anomalies.
+
+Partial or provider-interrupted sweeps should be treated as diagnostic pilot
+artifacts, not publishable leaderboards. They are useful for debugging prompts,
+summary-model behavior, anomaly labels, and cost accounting, but final rankings
+should use comparable cells from a completed run.
 
 ## Project Structure
 

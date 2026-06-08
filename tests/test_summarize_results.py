@@ -32,6 +32,17 @@ class SummarizeResultsTest(unittest.TestCase):
                 "completed_turns": 4,
                 "negotiation_result": "accepted",
                 "data_error": False,
+                "usage_events": [
+                    {
+                        "model": "seller-a",
+                        "role": "seller",
+                        "prompt_tokens": 10,
+                        "completion_tokens": 8,
+                        "total_tokens": 18,
+                        "estimated_cost_usd": 0.01,
+                        "usage_available": True,
+                    }
+                ],
             }
             write_result(root, "seller_a/buyer_b/product_1/budget_mid/product_1_exp_0.json", base_payload)
             write_result(
@@ -45,6 +56,10 @@ class SummarizeResultsTest(unittest.TestCase):
             self.assertEqual(payload["total_files"], 2)
             self.assertEqual(payload["analyzed_files"], 1)
             self.assertEqual(payload["skipped_data_error"], 1)
+            self.assertEqual(payload["files_with_usage"], 1)
+            self.assertEqual(payload["usage_summary"]["calls"], 1)
+            self.assertEqual(payload["usage_summary"]["total_tokens"], 18)
+            self.assertEqual(payload["usage_summary"]["estimated_cost_usd"], 0.01)
             self.assertEqual(payload["risk_summary"]["out_of_budget"], 0)
             pair = payload["pairs"][0]
             self.assertEqual(pair["episodes"], 1)
