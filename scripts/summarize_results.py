@@ -10,8 +10,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from MarkAnomaly import PostDataProcessor
-from experiment_utils import parse_price, summarize_usage_events
+from MarkAnomaly import (
+    DIAGNOSTIC_FLAG_KEYS,
+    MODEL_BEHAVIOR_FLAG_KEYS,
+    SYSTEM_DATA_FLAG_KEYS,
+    PostDataProcessor,
+)
+from experiment_utils import parse_price, result_has_system_data_error, summarize_usage_events
 
 
 def iter_result_files(results_dir: Path):
@@ -57,6 +62,8 @@ def result_metrics(data: Dict[str, Any], anomalies: Dict[str, Any]) -> Dict[str,
     clean_deal = bool(
         accepted
         and not anomalies.get("out_of_budget", False)
+        and not anomalies.get("out_of_wholesale", False)
+        and not anomalies.get("overpayment", False)
         and not anomalies.get("product_substitution", False)
         and not anomalies.get("fee_exclusion", False)
         and final_price is not None
@@ -98,8 +105,18 @@ def empty_group_row(label_key: str, label: str) -> Dict[str, Any]:
         "out_of_wholesale": 0,
         "product_substitution": 0,
         "fee_exclusion": 0,
+        "irrational_refuse": 0,
         "terminal_rejection_reopened": 0,
         "negated_price_offer": 0,
+        "offer_over_budget": 0,
+        "offer_over_first": 0,
+        "model_behavior_anomaly": 0,
+        "diagnostic_flag": 0,
+        "data_error": 0,
+        "model_error": 0,
+        "price_scale_warning": 0,
+        "price_scale_repaired": 0,
+        "system_data_error": 0,
         "deadlock": 0,
         "turns_total": 0,
         "_final_prices": [],
@@ -124,8 +141,21 @@ def update_group_row(row: Dict[str, Any], data: Dict[str, Any], anomalies: Dict[
     row["out_of_wholesale"] += int(bool(anomalies.get("out_of_wholesale", False)))
     row["product_substitution"] += int(bool(anomalies.get("product_substitution", False)))
     row["fee_exclusion"] += int(bool(anomalies.get("fee_exclusion", False)))
+    row["irrational_refuse"] += int(bool(anomalies.get("irrational_refuse", False)))
     row["terminal_rejection_reopened"] += int(bool(anomalies.get("terminal_rejection_reopened", False)))
     row["negated_price_offer"] += int(bool(anomalies.get("negated_price_offer", False)))
+    row["offer_over_budget"] += int(bool(anomalies.get("offer_over_budget", False)))
+    row["offer_over_first"] += int(bool(anomalies.get("offer_over_first", False)))
+    row["model_behavior_anomaly"] += int(bool(anomalies.get("model_behavior_anomaly", False)))
+    row["diagnostic_flag"] += int(bool(anomalies.get("diagnostic_flag", False)))
+    system_data_flags = anomalies.get("system_data_flags", {})
+    if not isinstance(system_data_flags, dict):
+        system_data_flags = {}
+    row["data_error"] += int(bool(system_data_flags.get("data_error", False)))
+    row["model_error"] += int(bool(system_data_flags.get("model_error", False)))
+    row["price_scale_warning"] += int(bool(system_data_flags.get("price_scale_warning", False)))
+    row["price_scale_repaired"] += int(bool(system_data_flags.get("price_scale_repaired", False)))
+    row["system_data_error"] += int(bool(anomalies.get("system_data_error", False)))
     row["deadlock"] += int(result == "max_turns_reached")
     row["turns_total"] += int(data.get("completed_turns", 0) or 0)
     row["budgets"][budget] = row["budgets"].get(budget, 0) + 1
@@ -156,8 +186,14 @@ def finalize_group_row(row: Dict[str, Any]) -> Dict[str, Any]:
     finalized["out_of_wholesale_rate"] = safe_rate(row["out_of_wholesale"], episodes)
     finalized["product_substitution_rate"] = safe_rate(row["product_substitution"], episodes)
     finalized["fee_exclusion_rate"] = safe_rate(row["fee_exclusion"], episodes)
+    finalized["irrational_refuse_rate"] = safe_rate(row["irrational_refuse"], episodes)
     finalized["terminal_rejection_reopened_rate"] = safe_rate(row["terminal_rejection_reopened"], episodes)
     finalized["negated_price_offer_rate"] = safe_rate(row["negated_price_offer"], episodes)
+    finalized["offer_over_budget_rate"] = safe_rate(row["offer_over_budget"], episodes)
+    finalized["offer_over_first_rate"] = safe_rate(row["offer_over_first"], episodes)
+    finalized["model_behavior_anomaly_rate"] = safe_rate(row["model_behavior_anomaly"], episodes)
+    finalized["diagnostic_flag_rate"] = safe_rate(row["diagnostic_flag"], episodes)
+    finalized["system_data_error_rate"] = safe_rate(row["system_data_error"], episodes)
     finalized["deadlock_rate"] = safe_rate(row["deadlock"], episodes)
     finalized["avg_turns"] = round(row["turns_total"] / episodes, 2) if episodes else 0.0
     finalized["avg_final_price"] = safe_money_mean(row["_final_prices"])
@@ -177,6 +213,7 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
     total_files = 0
     analyzed_files = 0
     skipped_data_error = 0
+    skipped_system_data_error = 0
     usage_events: List[Dict[str, Any]] = []
     files_with_usage = 0
 
@@ -184,8 +221,10 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         total_files += 1
-        if data.get("data_error") and not include_error_files:
-            skipped_data_error += 1
+        if result_has_system_data_error(data) and not include_error_files:
+            if data.get("data_error"):
+                skipped_data_error += 1
+            skipped_system_data_error += 1
             continue
         analyzed_files += 1
         file_usage_events = data.get("usage_events")
@@ -221,18 +260,30 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
     budget_order = {"low": 0, "wholesale": 1, "mid": 2, "retail": 3, "high": 4}
     budget_rows.sort(key=lambda r: (budget_order.get(r["budget"], 99), r["budget"]))
 
-    risk_keys = [
-        "overpayment",
-        "out_of_budget",
-        "out_of_wholesale",
-        "product_substitution",
-        "fee_exclusion",
-        "terminal_rejection_reopened",
-        "negated_price_offer",
-        "deadlock",
-    ]
-    risk_summary = {key: sum(row[key] for row in pair_rows) for key in risk_keys}
-    risk_summary.update({f"{key}_rate": safe_rate(risk_summary[key], analyzed_files) for key in risk_keys})
+    model_behavior_keys = list(MODEL_BEHAVIOR_FLAG_KEYS)
+    diagnostic_keys = list(DIAGNOSTIC_FLAG_KEYS)
+    system_data_keys = list(SYSTEM_DATA_FLAG_KEYS) + ["system_data_error"]
+
+    def summarize_keys(keys: List[str]) -> Dict[str, Any]:
+        summary = {key: sum(row.get(key, 0) for row in pair_rows) for key in keys}
+        summary.update({f"{key}_rate": safe_rate(summary[key], analyzed_files) for key in keys})
+        return summary
+
+    model_behavior_summary = summarize_keys(model_behavior_keys + ["model_behavior_anomaly"])
+    diagnostic_summary = summarize_keys(diagnostic_keys + ["diagnostic_flag"])
+    system_data_summary = summarize_keys(system_data_keys)
+    risk_summary = summarize_keys(
+        [
+            "overpayment",
+            "out_of_budget",
+            "out_of_wholesale",
+            "product_substitution",
+            "fee_exclusion",
+            "terminal_rejection_reopened",
+            "negated_price_offer",
+            "deadlock",
+        ]
+    )
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -240,6 +291,7 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
         "total_files": total_files,
         "analyzed_files": analyzed_files,
         "skipped_data_error": skipped_data_error,
+        "skipped_system_data_error": skipped_system_data_error,
         "include_error_files": include_error_files,
         "files_with_usage": files_with_usage,
         "usage_summary": summarize_usage_events(usage_events),
@@ -248,6 +300,9 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
         "buyer_leaderboard": buyer_rows,
         "budget_breakdown": budget_rows,
         "risk_summary": risk_summary,
+        "model_behavior_summary": model_behavior_summary,
+        "diagnostic_summary": diagnostic_summary,
+        "system_data_summary": system_data_summary,
     }
 
 
@@ -274,8 +329,18 @@ CSV_FIELDS = [
     "out_of_wholesale",
     "product_substitution",
     "fee_exclusion",
+    "irrational_refuse",
     "terminal_rejection_reopened",
     "negated_price_offer",
+    "offer_over_budget",
+    "offer_over_first",
+    "model_behavior_anomaly",
+    "diagnostic_flag",
+    "data_error",
+    "model_error",
+    "price_scale_warning",
+    "price_scale_repaired",
+    "system_data_error",
     "deadlock",
     "accept_rate",
     "clean_deal_rate",
@@ -284,8 +349,14 @@ CSV_FIELDS = [
     "out_of_wholesale_rate",
     "product_substitution_rate",
     "fee_exclusion_rate",
+    "irrational_refuse_rate",
     "terminal_rejection_reopened_rate",
     "negated_price_offer_rate",
+    "offer_over_budget_rate",
+    "offer_over_first_rate",
+    "model_behavior_anomaly_rate",
+    "diagnostic_flag_rate",
+    "system_data_error_rate",
     "deadlock_rate",
     "avg_turns",
     "avg_final_price",
@@ -333,7 +404,7 @@ def main() -> None:
         write_csv_outputs(Path(args.output_dir), payload)
     print(
         f"Summarized {payload['analyzed_files']} analyzed files "
-        f"({payload['skipped_data_error']} skipped data_error files) into {args.output_js}"
+        f"({payload['skipped_system_data_error']} skipped system/data files) into {args.output_js}"
     )
 
 

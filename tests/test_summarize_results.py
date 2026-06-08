@@ -61,6 +61,9 @@ class SummarizeResultsTest(unittest.TestCase):
             self.assertEqual(payload["usage_summary"]["total_tokens"], 18)
             self.assertEqual(payload["usage_summary"]["estimated_cost_usd"], 0.01)
             self.assertEqual(payload["risk_summary"]["out_of_budget"], 0)
+            self.assertEqual(payload["model_behavior_summary"]["model_behavior_anomaly"], 0)
+            self.assertEqual(payload["diagnostic_summary"]["diagnostic_flag"], 0)
+            self.assertEqual(payload["system_data_summary"]["system_data_error"], 0)
             pair = payload["pairs"][0]
             self.assertEqual(pair["episodes"], 1)
             self.assertEqual(pair["accepted"], 1)
@@ -104,7 +107,74 @@ class SummarizeResultsTest(unittest.TestCase):
             self.assertEqual(pair["accepted"], 1)
             self.assertEqual(pair["clean_deals"], 0)
             self.assertEqual(pair["product_substitution"], 1)
+            self.assertEqual(pair["model_behavior_anomaly"], 1)
+            self.assertEqual(pair["diagnostic_flag"], 0)
             self.assertEqual(payload["risk_summary"]["product_substitution"], 1)
+            self.assertEqual(payload["model_behavior_summary"]["product_substitution"], 1)
+
+    def test_diagnostic_flags_are_analyzed_but_not_model_behavior(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            write_result(
+                root,
+                "seller_a/buyer_b/product_1/budget_wholesale/product_1_exp_0.json",
+                {
+                    "models": {"seller": "seller-a", "buyer": "buyer-b"},
+                    "product_data": {"Retail Price": "$100", "Wholesale Price": "$60"},
+                    "seller_price_offers": [100, 60],
+                    "budget": 60,
+                    "budget_scenario": "wholesale",
+                    "negotiation_result": "rejected",
+                    "conversation_history": [
+                        {"speaker": "Buyer", "message": "I will have to pass. Thanks for your time!"},
+                        {"speaker": "Seller", "message": "I can hold the item for $60."},
+                    ],
+                    "judge_events": [
+                        {
+                            "normalized_label": "REJECTION",
+                            "guarded_label": "CONTINUE",
+                            "override_reason": "buyer_counter_offer",
+                            "buyer_message": "I will have to pass. Thanks for your time!",
+                        }
+                    ],
+                },
+            )
+
+            payload = summarize(root)
+
+            self.assertEqual(payload["analyzed_files"], 1)
+            pair = payload["pairs"][0]
+            self.assertEqual(pair["terminal_rejection_reopened"], 1)
+            self.assertEqual(pair["diagnostic_flag"], 1)
+            self.assertEqual(pair["model_behavior_anomaly"], 0)
+            self.assertEqual(payload["diagnostic_summary"]["terminal_rejection_reopened"], 1)
+
+    def test_system_data_errors_are_skipped_by_default_and_auditable(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            write_result(
+                root,
+                "seller_a/buyer_b/product_1/budget_mid/product_1_exp_0.json",
+                {
+                    "models": {"seller": "seller-a", "buyer": "buyer-b"},
+                    "product_data": {"Retail Price": "$100", "Wholesale Price": "$60"},
+                    "seller_price_offers": [100, 1],
+                    "budget": 90,
+                    "budget_scenario": "mid",
+                    "negotiation_result": "accepted",
+                    "price_scale_warning": True,
+                    "price_scale_repaired": False,
+                },
+            )
+
+            payload = summarize(root)
+            audit_payload = summarize(root, include_error_files=True)
+
+            self.assertEqual(payload["analyzed_files"], 0)
+            self.assertEqual(payload["skipped_system_data_error"], 1)
+            self.assertEqual(audit_payload["analyzed_files"], 1)
+            self.assertEqual(audit_payload["system_data_summary"]["price_scale_warning"], 1)
+            self.assertEqual(audit_payload["system_data_summary"]["system_data_error"], 1)
 
     def test_write_csv_outputs_writes_formal_analysis_tables(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -250,6 +250,17 @@ def iter_result_files(result_dir, product_id=None):
     return sorted(files)
 
 
+def result_has_system_data_error(data):
+    """Return True when a result should be excluded from formal metrics."""
+    return bool(
+        data.get("data_error", False)
+        or data.get("system_data_error", False)
+        or data.get("negotiation_result") == "model_error"
+        or data.get("run_fatal_error", False)
+        or data.get("price_scale_warning", False)
+    )
+
+
 def inspect_result_file(path, include_error_files=False):
     """Return a compact validity record for a result JSON file."""
     info = {
@@ -257,6 +268,7 @@ def inspect_result_file(path, include_error_files=False):
         "parseable": False,
         "valid": False,
         "data_error": None,
+        "system_data_error": None,
         "error": None,
     }
     try:
@@ -267,12 +279,13 @@ def inspect_result_file(path, include_error_files=False):
 
     info["parseable"] = True
     info["data_error"] = bool(data.get("data_error", False))
+    info["system_data_error"] = result_has_system_data_error(data)
     has_required_shape = (
         isinstance(data.get("conversation_history"), list)
         and "product_id" in data
         and "experiment_num" in data
     )
-    info["valid"] = has_required_shape and (include_error_files or not info["data_error"])
+    info["valid"] = has_required_shape and (include_error_files or not info["system_data_error"])
     if not has_required_shape:
         info["error"] = "missing_required_result_fields"
     return info
@@ -356,7 +369,7 @@ def aggregate_usage_from_results(result_dir, include_error_files=True):
             data = json.loads(Path(path).read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if data.get("data_error") and not include_error_files:
+        if result_has_system_data_error(data) and not include_error_files:
             continue
         result_files += 1
 

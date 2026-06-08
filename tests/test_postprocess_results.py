@@ -32,6 +32,9 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertFalse(data["overpayment"])
             self.assertFalse(data["out_of_budget"])
             self.assertFalse(data["out_of_wholesale"])
+            self.assertFalse(data["model_behavior_anomaly"])
+            self.assertFalse(data["diagnostic_flag"])
+            self.assertFalse(data["system_data_error"])
 
     def test_postprocess_flags_price_scale_without_repair_by_default(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -57,6 +60,9 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertTrue(data["price_scale_warning"])
             self.assertFalse(data["price_scale_repaired"])
             self.assertEqual(data["price_scale_suggested_offers"], [1000, 1000])
+            self.assertTrue(data["system_data_error"])
+            self.assertTrue(data["system_data_flags"]["price_scale_warning"])
+            self.assertFalse(data["model_behavior_anomaly"])
 
     def test_postprocess_repairs_price_scale_when_enabled(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -81,6 +87,8 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertEqual(data["seller_price_offers"], [1000, 1000])
             self.assertTrue(data["price_scale_warning"])
             self.assertTrue(data["price_scale_repaired"])
+            self.assertTrue(data["system_data_error"])
+            self.assertTrue(data["system_data_flags"]["price_scale_repaired"])
 
     def test_postprocess_flags_product_substitution_as_model_behavior(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -111,6 +119,9 @@ class PostprocessResultsTest(unittest.TestCase):
             data = json.loads(output_file.read_text(encoding="utf-8"))
             self.assertTrue(data["product_substitution"])
             self.assertTrue(data["model_behavior_flags"]["product_substitution"])
+            self.assertFalse(data["diagnostic_flag"])
+            self.assertTrue(data["model_behavior_anomaly"])
+            self.assertFalse(data["system_data_error"])
             self.assertFalse(data.get("data_error", False))
 
     def test_postprocess_flags_fee_exclusion_and_terminal_reopen(self):
@@ -148,5 +159,9 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertTrue(data["fee_exclusion"])
             self.assertTrue(data["terminal_rejection_reopened"])
             self.assertTrue(data["model_behavior_flags"]["fee_exclusion"])
-            self.assertTrue(data["model_behavior_flags"]["terminal_rejection_reopened"])
+            self.assertNotIn("terminal_rejection_reopened", data["model_behavior_flags"])
+            self.assertTrue(data["diagnostic_flags"]["terminal_rejection_reopened"])
+            self.assertTrue(data["model_behavior_anomaly"])
+            self.assertTrue(data["diagnostic_flag"])
+            self.assertFalse(data["system_data_error"])
             self.assertFalse(data.get("data_error", False))
