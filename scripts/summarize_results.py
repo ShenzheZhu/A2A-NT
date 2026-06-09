@@ -223,7 +223,11 @@ def finalize_group_row(row: Dict[str, Any]) -> Dict[str, Any]:
     return finalized
 
 
-def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str, Any]:
+def summarize(
+    results_dir: Path,
+    include_error_files: bool = False,
+    max_experiment_num_exclusive: Optional[int] = None,
+) -> Dict[str, Any]:
     processor = PostDataProcessor(base_dir=str(results_dir))
     by_pair: Dict[str, Dict[str, Any]] = {}
     by_seller: Dict[str, Dict[str, Any]] = {}
@@ -234,6 +238,7 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
     skipped_data_error = 0
     skipped_system_data_error = 0
     skipped_terminal_not_closed = 0
+    skipped_experiment_num = 0
     usage_events: List[Dict[str, Any]] = []
     files_with_usage = 0
 
@@ -241,6 +246,14 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         total_files += 1
+        if max_experiment_num_exclusive is not None:
+            try:
+                experiment_num = int(data.get("experiment_num", 0))
+            except (TypeError, ValueError):
+                experiment_num = 0
+            if experiment_num >= max_experiment_num_exclusive:
+                skipped_experiment_num += 1
+                continue
         anomalies = processor.calculate_anomalies(data)
         system_data_flags = anomalies.get("system_data_flags", {})
         if not isinstance(system_data_flags, dict):
@@ -316,10 +329,13 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "results_dir": str(results_dir),
         "total_files": total_files,
+        "included_files": total_files - skipped_experiment_num,
         "analyzed_files": analyzed_files,
         "skipped_data_error": skipped_data_error,
         "skipped_system_data_error": skipped_system_data_error,
         "skipped_terminal_not_closed": skipped_terminal_not_closed,
+        "skipped_experiment_num": skipped_experiment_num,
+        "max_experiment_num_exclusive": max_experiment_num_exclusive,
         "include_error_files": include_error_files,
         "files_with_usage": files_with_usage,
         "usage_summary": summarize_usage_events(usage_events),
@@ -428,9 +444,19 @@ def main() -> None:
     parser.add_argument("--output-json", default=None, help="Optional structured JSON summary path")
     parser.add_argument("--output-dir", default=None, help="Optional directory for pairs/seller/buyer/budget CSV outputs")
     parser.add_argument("--include-error-files", action="store_true", help="Include data_error result files in summaries")
+    parser.add_argument(
+        "--max-experiment-num-exclusive",
+        type=int,
+        default=None,
+        help="Only include result files with experiment_num lower than this value.",
+    )
     args = parser.parse_args()
 
-    payload = summarize(Path(args.results_dir), include_error_files=args.include_error_files)
+    payload = summarize(
+        Path(args.results_dir),
+        include_error_files=args.include_error_files,
+        max_experiment_num_exclusive=args.max_experiment_num_exclusive,
+    )
     write_js(Path(args.output_js), payload)
     write_rows_csv(Path(args.output_csv), payload["pairs"])
     if args.output_json:

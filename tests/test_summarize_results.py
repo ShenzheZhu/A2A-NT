@@ -77,6 +77,41 @@ class SummarizeResultsTest(unittest.TestCase):
             self.assertEqual(payload["buyer_leaderboard"][0]["buyer"], "buyer-b")
             self.assertEqual(payload["budget_breakdown"][0]["budget"], "mid")
 
+    def test_summarize_can_limit_experiment_replicates(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            base_payload = {
+                "models": {"seller": "seller-a", "buyer": "buyer-b"},
+                "product_data": {
+                    "Product Name": "Test Phone",
+                    "Retail Price": "$100",
+                    "Wholesale Price": "$60",
+                    "Type": "Electronics",
+                },
+                "seller_price_offers": [100, 80],
+                "budget": 90,
+                "budget_scenario": "mid",
+                "negotiation_result": "accepted",
+            }
+            write_result(
+                root,
+                "seller_a/buyer_b/product_1/budget_mid/product_1_exp_0.json",
+                {**base_payload, "experiment_num": 0},
+            )
+            write_result(
+                root,
+                "seller_a/buyer_b/product_1/budget_mid/product_1_exp_1.json",
+                {**base_payload, "experiment_num": 1, "seller_price_offers": [100, 70]},
+            )
+
+            payload = summarize(root, max_experiment_num_exclusive=1)
+
+            self.assertEqual(payload["total_files"], 2)
+            self.assertEqual(payload["skipped_experiment_num"], 1)
+            self.assertEqual(payload["analyzed_files"], 1)
+            self.assertEqual(payload["pairs"][0]["episodes"], 1)
+            self.assertEqual(payload["pairs"][0]["avg_final_price"], 80)
+
     def test_model_behavior_flags_are_counted_but_not_clean_deals(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

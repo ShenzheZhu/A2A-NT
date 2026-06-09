@@ -4,8 +4,9 @@ from scripts.build_leaderboard_data import build_payload
 
 
 class BuildLeaderboardDataTest(unittest.TestCase):
-    def test_build_payload_marks_cohorts_and_normalizes_to_bridge(self):
+    def test_build_payload_uses_unified_model_pool_and_configured_baseline(self):
         config = {
+            "relative_profit_baseline": "provider/bridge-model",
             "frontier_models": [
                 {"label": "New Model", "model": "provider/new-model"},
             ],
@@ -16,8 +17,10 @@ class BuildLeaderboardDataTest(unittest.TestCase):
         summary = {
             "generated_at": "2026-06-08T00:00:00+00:00",
             "results_dir": "results/run",
-            "total_files": 4,
+            "total_files": 5,
+            "included_files": 4,
             "analyzed_files": 4,
+            "skipped_experiment_num": 1,
             "skipped_system_data_error": 0,
             "pairs": [{"pair": "provider/new-model__provider/bridge-model", "episodes": 4, "turns_total": 18}],
             "budget_breakdown": [{"budget": "mid"}, {"budget": "retail"}],
@@ -85,8 +88,8 @@ class BuildLeaderboardDataTest(unittest.TestCase):
         self.assertEqual(payload["baselineLabel"], "Bridge Model")
         self.assertEqual(payload["baselineAvgProfit"], 10)
         rows = {row["modelId"]: row for row in payload["rows"]}
-        self.assertEqual(rows["provider/new-model"]["cohortLabel"], "New")
-        self.assertEqual(rows["provider/bridge-model"]["cohortLabel"], "Legacy bridge")
+        self.assertEqual(rows["provider/new-model"]["cohortLabel"], "Model")
+        self.assertEqual(rows["provider/bridge-model"]["cohortLabel"], "Model")
         self.assertEqual(rows["provider/new-model"]["relativeProfit"], 3.0)
         self.assertEqual(rows["provider/new-model"]["sellerPrr"], 25.0)
         self.assertEqual(rows["provider/new-model"]["buyerPrr"], 12.0)
@@ -105,12 +108,16 @@ class BuildLeaderboardDataTest(unittest.TestCase):
         self.assertEqual(risk_rows["provider/new-model"]["overpaymentRate"], 25.0)
         self.assertEqual(risk_rows["provider/bridge-model"]["riskRate"], 0.0)
         details = payload["experimentDetails"]
-        self.assertEqual(details["modelSet"]["frontierModels"], ["New Model"])
-        self.assertEqual(details["modelSet"]["bridgeModels"], ["Bridge Model"])
+        self.assertEqual(details["modelSet"]["models"], ["New Model", "Bridge Model"])
+        self.assertEqual(details["modelSet"]["count"], 2)
         self.assertEqual(details["pairCount"], 1)
         self.assertEqual(details["productCount"], 2)
         self.assertEqual(details["budgetSettings"], ["mid", "retail"])
         self.assertEqual(details["conversationCount"], 4)
+        self.assertEqual(details["skippedExperimentNum"], 1)
+        self.assertEqual(payload["totalFiles"], 5)
+        self.assertEqual(payload["includedFiles"], 4)
+        self.assertEqual(payload["skippedExperimentNum"], 1)
         self.assertEqual(details["analyzedCount"], 4)
         self.assertEqual(details["avgTurns"], 4.5)
         self.assertEqual(details["baselineLabel"], "Bridge Model")

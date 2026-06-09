@@ -38,17 +38,38 @@ def disabled_models(entries):
     return [entry for entry in entries if not entry.get("enabled", True)]
 
 
+def all_enabled_models(plan):
+    """Return every enabled model once, preserving config order."""
+    models = []
+    seen = set()
+    for group_name in ("frontier_models", "bridge_models"):
+        for entry in enabled_models(plan.get(group_name, [])):
+            model_id = entry["model"]
+            if model_id in seen:
+                continue
+            seen.add(model_id)
+            models.append(entry)
+    return models
+
+
 def build_pairs(plan, mode):
     frontier = enabled_models(plan.get("frontier_models", []))
     bridge = enabled_models(plan.get("bridge_models", []))
     pairs = []
 
-    if mode in {"frontier-grid", "all"}:
+    if mode == "all":
+        models = all_enabled_models(plan)
+        for seller in models:
+            for buyer in models:
+                pairs.append((seller, buyer, "model-grid"))
+        return pairs
+
+    if mode == "frontier-grid":
         for seller in frontier:
             for buyer in frontier:
                 pairs.append((seller, buyer, "frontier-grid"))
 
-    if mode in {"bridge", "all"}:
+    if mode == "bridge":
         for frontier_model in frontier:
             for bridge_model in bridge:
                 pairs.append((frontier_model, bridge_model, "bridge-new-seller"))

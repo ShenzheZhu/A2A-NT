@@ -3,6 +3,7 @@
   "products_file": "dataset/products_consumer_electronics.json",
   "output_dir": "results/sweep",
   "summary_model": "openai/gpt-5.4-mini",
+  "relative_profit_baseline": "qwen/qwen-2.5-7b-instruct",
   "max_turns": 10,
   "num_experiments": 1,
   "budgets": ["low", "wholesale", "mid", "retail", "high"],

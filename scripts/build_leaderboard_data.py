@@ -28,24 +28,41 @@ def enabled_models(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 def model_catalog(config: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
     catalog: Dict[str, Dict[str, str]] = {}
-    for entry in enabled_models(config.get("frontier_models", [])):
-        catalog[entry["model"]] = {
-            "label": entry.get("label", entry["model"]),
-            "cohort": "new",
-            "cohortLabel": "New",
-        }
-    for entry in enabled_models(config.get("bridge_models", [])):
-        catalog[entry["model"]] = {
-            "label": entry.get("label", entry["model"]),
-            "cohort": "legacy",
-            "cohortLabel": "Legacy bridge",
-        }
+    for group_name in ("frontier_models", "bridge_models"):
+        for entry in enabled_models(config.get(group_name, [])):
+            model_id = entry["model"]
+            if model_id in catalog:
+                continue
+            catalog[model_id] = {
+                "label": entry.get("label", model_id),
+                "cohort": "model",
+                "cohortLabel": "Model",
+            }
     return catalog
 
 
-def first_enabled_bridge(config: Dict[str, Any]) -> Optional[str]:
-    bridges = enabled_models(config.get("bridge_models", []))
-    return bridges[0]["model"] if bridges else None
+def all_enabled_model_labels(config: Dict[str, Any]) -> List[str]:
+    labels = []
+    seen = set()
+    for group_name in ("frontier_models", "bridge_models"):
+        for entry in enabled_models(config.get(group_name, [])):
+            model_id = entry["model"]
+            if model_id in seen:
+                continue
+            seen.add(model_id)
+            labels.append(entry.get("label", model_id))
+    return labels
+
+
+def default_baseline_model(config: Dict[str, Any]) -> Optional[str]:
+    if config.get("relative_profit_baseline"):
+        return config["relative_profit_baseline"]
+    for entry in enabled_models(config.get("bridge_models", [])):
+        return entry["model"]
+    for group_name in ("frontier_models", "bridge_models"):
+        for entry in enabled_models(config.get(group_name, [])):
+            return entry["model"]
+    return None
 
 
 def index_rows(rows: List[Dict[str, Any]], key: str) -> Dict[str, Dict[str, Any]]:
@@ -140,7 +157,6 @@ def build_risk_rows(
         key=lambda row: (
             row["riskRate"] is None,
             row["riskRate"] or 0,
-            row["cohort"],
             row["model"],
         )
     )
@@ -154,11 +170,11 @@ def enabled_labels(entries: List[Dict[str, Any]]) -> List[str]:
 def infer_product_count(summary: Dict[str, Any]) -> Optional[int]:
     pair_count = len(summary.get("pairs", []))
     budget_count = len(summary.get("budget_breakdown", []))
-    total_files = summary.get("total_files")
-    if not pair_count or not budget_count or not total_files:
+    included_files = summary.get("included_files", summary.get("total_files"))
+    if not pair_count or not budget_count or not included_files:
         return None
     try:
-        product_count = int(total_files) / (pair_count * budget_count)
+        product_count = int(included_files) / (pair_count * budget_count)
     except (TypeError, ValueError, ZeroDivisionError):
         return None
     if product_count.is_integer():
@@ -180,23 +196,21 @@ def build_experiment_details(
     baseline_label: Optional[str],
 ) -> Dict[str, Any]:
     budgets = config.get("budgets") or [row.get("budget") for row in summary.get("budget_breakdown", [])]
-    frontier_models = enabled_labels(config.get("frontier_models", []))
-    bridge_models = enabled_labels(config.get("bridge_models", []))
+    models = all_enabled_model_labels(config)
     return {
         "modelSet": {
-            "frontierModels": frontier_models,
-            "bridgeModels": bridge_models,
-            "frontierCount": len(frontier_models),
-            "bridgeCount": len(bridge_models),
+            "models": models,
+            "count": len(models),
         },
         "pairCount": len(summary.get("pairs", [])),
         "productCount": infer_product_count(summary),
         "productsFile": config.get("products_file"),
         "budgetSettings": budgets,
         "budgetCount": len(budgets),
-        "conversationCount": summary.get("total_files"),
+        "conversationCount": summary.get("included_files", summary.get("total_files")),
         "analyzedCount": summary.get("analyzed_files"),
         "skippedSystemDataError": summary.get("skipped_system_data_error"),
+        "skippedExperimentNum": summary.get("skipped_experiment_num", 0),
         "avgTurns": avg_turns(summary),
         "summaryModel": config.get("summary_model"),
         "maxTurns": config.get("max_turns"),
@@ -213,7 +227,7 @@ def build_payload(
     catalog = model_catalog(config)
     seller_rows = index_rows(summary.get("seller_leaderboard", []), "seller")
     buyer_rows = index_rows(summary.get("buyer_leaderboard", []), "buyer")
-    baseline_model = baseline_model or first_enabled_bridge(config)
+    baseline_model = baseline_model or default_baseline_model(config)
     baseline_profit = None
     if baseline_model and baseline_model in seller_rows:
         baseline_profit = seller_rows[baseline_model].get("avg_profit")
@@ -248,7 +262,6 @@ def build_payload(
         key=lambda row: (
             row["relativeProfit"] is None,
             -(row["relativeProfit"] or 0),
-            row["cohort"],
             row["model"],
         )
     )
@@ -258,8 +271,10 @@ def build_payload(
         "sourceGeneratedAt": summary.get("generated_at"),
         "sourceResultsDir": summary.get("results_dir"),
         "totalFiles": summary.get("total_files"),
+        "includedFiles": summary.get("included_files", summary.get("total_files")),
         "analyzedFiles": summary.get("analyzed_files"),
         "skippedSystemDataError": summary.get("skipped_system_data_error"),
+        "skippedExperimentNum": summary.get("skipped_experiment_num", 0),
         "baselineModel": baseline_model,
         "baselineLabel": baseline_label,
         "baselineAvgProfit": baseline_profit,
