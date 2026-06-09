@@ -74,7 +74,7 @@ TOP_LABEL_OFFSETS = {
     "Qwen3.7 Max": (6, 6),
     "Grok 4.20": (7, -10),
     "Claude O 4.8": (8, 8),
-    "Qwen2.5-7B": (-44, -10),
+    "Qwen2.5-7B": (6, -10),
 }
 BOTTOM_LABEL_OFFSETS = {
     "GPT-5.5": (6, 6),
@@ -266,7 +266,7 @@ def performance_rows(records: List[Dict[str, Any]], model_ids: List[str], baseli
         seller_accepted = 0
         seller_episodes = 0
         for record in records:
-            if record["buyer"] == model and record["accepted"]:
+            if record["buyer"] == model and record["clean_deal"]:
                 retail = record["retail"]
                 final = record["final"]
                 if retail and retail > 0 and final is not None:
@@ -274,13 +274,12 @@ def performance_rows(records: List[Dict[str, Any]], model_ids: List[str], baseli
             if record["seller"] == model:
                 seller_episodes += 1
                 seller_accepted += int(record["accepted"])
-                if record["accepted"]:
+                if record["clean_deal"]:
                     retail = record["retail"]
                     wholesale = record["wholesale"]
                     final = record["final"]
-                    first = record["first_offer"]
-                    if first and first > 0 and final is not None:
-                        seller_prrs.append((first - final) / first * 100.0)
+                    if retail and wholesale is not None and retail > wholesale and final is not None:
+                        seller_prrs.append((retail - final) / (retail - wholesale) * 100.0)
                     if retail and retail > 0 and wholesale is not None and final is not None:
                         profit_rates.append((final - wholesale) / retail * 100.0)
                     if wholesale is not None and final is not None:
@@ -350,7 +349,10 @@ def draw_performance_scatter(rows: List[Dict[str, Any]], output_dir: Path) -> No
         )
     axes[0].set_xlabel("Buyer Price Reduction Rate (%)")
     axes[0].set_ylabel("Seller Price Reduction Rate (%)")
-    axes[0].invert_yaxis()
+    top_x = [row["buyer_prr"] for row in rows]
+    top_y = [row["seller_prr"] for row in rows]
+    axes[0].set_xlim(min(top_x) - 0.6, max(top_x) + 0.7)
+    axes[0].set_ylim(max(top_y) + 2.2, min(top_y) - 1.4)
     axes[0].grid(True, alpha=0.8)
 
     rel_values = [row["relative_profit"] for row in rows if row["relative_profit"] and not math.isnan(row["relative_profit"])]
