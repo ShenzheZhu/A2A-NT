@@ -740,11 +740,6 @@ const scopeMismatchVariants = (riskCaseExamples.product_substitution?.variants |
 }));
 
 Object.assign(riskCaseExamples, {
-  matrix_overview: {
-    title: "Risk behavior matrix",
-    trigger: "Rows show the role whose user bears the risk. Columns show the risky action or failure mode.",
-    why: "Each colored outcome badge opens a short dialogue for that exact actor-action-outcome combination. Shared colors mean the same outcome family, not the same underlying mechanism."
-  },
   actor_buyer: {
     title: "Buyer-side risk owner",
     trigger: "The buyer agent represents a consumer with a maximum budget and a requested product scope.",
@@ -779,16 +774,6 @@ Object.assign(riskCaseExamples, {
     title: "Settlement failure",
     trigger: "The agents fail to close, reject, or clearly terminate a feasible negotiation state.",
     why: "The risky cases are not rational price impasses. They are missed feasible deals, waiting loops, task drift, or repeated non-closure after the conversation should have resolved."
-  },
-  cell_seller_budget_anchored_upsell: {
-    title: "No seller-side outcome mapped",
-    trigger: "Budget-anchored upsell is not counted as a seller-side risk cell.",
-    why: "A seller can trigger the anchoring language, but the public risk owner is the buyer side because the harmful outcome is accepting an inflated price."
-  },
-  cell_seller_incomplete_price_quote: {
-    title: "No seller-side outcome mapped",
-    trigger: "Incomplete price quote is currently treated as buyer-side payment risk in this matrix.",
-    why: "The seller may omit fees in the dialogue, but the counted public outcomes are buyer-side over-budget or overpayment harms when the buyer accepts the incomplete total."
   },
   buyer_budget_anchored_upsell_overpayment: riskVariant("overpayment", "max_budget_anchor", {
     title: "Budget-anchored upsell -> Overpayment",
@@ -1060,13 +1045,6 @@ function renderHighlightedText(text, highlights = []) {
   return rendered;
 }
 
-function getCellModalKey(actorKey, actionKey, outcomes) {
-  if (outcomes.length) {
-    return null;
-  }
-  return `cell_${actorKey}_${actionKey}`;
-}
-
 function renderRiskOutcomePill(item) {
   const outcome = riskOutcomeLabels[item.outcome];
   if (!outcome) return "";
@@ -1095,12 +1073,9 @@ function renderRiskBehavior() {
   const rows = riskMatrixActors.map((actor) => {
     const cells = riskMatrixActions.map((action) => {
       const outcomes = riskMatrixCells[actor.key]?.[action.key] || [];
-      const cellModalKey = getCellModalKey(actor.key, action.key, outcomes);
-      const emptyCopy = cellModalKey ? `<span class="risk-matrix-empty">No mapped public risk</span>` : "";
       return `
-        <div class="risk-matrix-box risk-matrix-cell ${outcomes.length ? "" : "empty"}" ${cellModalKey ? `role="button" tabindex="0" data-risk-key="${cellModalKey}" aria-haspopup="dialog" aria-controls="risk-case-modal"` : ""}>
+        <div class="risk-matrix-box risk-matrix-cell ${outcomes.length ? "" : "empty"}">
           ${outcomes.map(renderRiskOutcomePill).join("")}
-          ${emptyCopy}
         </div>
       `;
     }).join("");
@@ -1117,10 +1092,7 @@ function renderRiskBehavior() {
   riskBehaviorCards.innerHTML = `
     <div class="risk-matrix-scroll">
       <div class="risk-matrix" aria-label="Risk behavior matrix">
-        <button class="risk-matrix-box risk-matrix-corner" type="button" data-risk-key="matrix_overview" aria-haspopup="dialog" aria-controls="risk-case-modal">
-          <span>Matrix</span>
-          <strong>Actor × action</strong>
-        </button>
+        <div class="risk-matrix-spacer" aria-hidden="true"></div>
         ${actionHeaders}
         ${rows}
       </div>
