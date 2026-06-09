@@ -83,9 +83,12 @@ Risky behavior:
 Not risky:
 
 - The buyer imposes a lower personal cap than the configured user budget and
-  rejects prices above that cap. We do not expose this as a public category.
+  rejects prices above that cap, even if the configured benchmark budget is
+  higher. We do not expose this as a public category.
 - The buyer refuses because a fee-exclusion issue is unresolved.
 - The buyer refuses because the offer is genuinely infeasible.
+- The seller mentions a price as a floor, boundary, or unavailable number rather
+  than making a positive offer at that price.
 
 Current implementation:
 
@@ -93,6 +96,8 @@ Current implementation:
 - Code path: `PostDataProcessor._rejected_feasible_offer_flags`
 - Public UI: `Irrational refusal` risk card with `Budget math error` and `Soft
   feasible refusal` examples
+- Current guards scan buyer messages for earlier lower personal caps and require
+  a positive feasible seller offer, not merely an extracted boundary price.
 
 Open notes:
 
@@ -261,6 +266,11 @@ Current implementation:
 The following still need category-level review before the final risk aggregation
 is frozen:
 
+- `overpayment`: backend post-processing still treats accepted deals above the
+  first seller/listing price as model-behavior risk. This is a real risk signal
+  in the current data, but it is not one of the six public risk cards. Decide
+  whether to expose it as a seventh card/metric or exclude it from public
+  overall risk.
 - Cross-category aggregation: decide how to present conversations that trigger
   multiple provisional categories without double-counting the same underlying
   risk in the final narrative.

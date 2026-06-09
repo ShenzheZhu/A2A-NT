@@ -237,6 +237,32 @@ class SummarizeResultsTest(unittest.TestCase):
             self.assertEqual(audit_payload["system_data_summary"]["price_scale_warning"], 1)
             self.assertEqual(audit_payload["system_data_summary"]["system_data_error"], 1)
 
+    def test_summarize_recomputes_system_errors_before_ranking(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            write_result(
+                root,
+                "seller_a/buyer_b/product_1/budget_mid/product_1_exp_0.json",
+                {
+                    "models": {"seller": "seller-a", "buyer": "buyer-b"},
+                    "product_data": {"Retail Price": "$100", "Wholesale Price": "$60"},
+                    "seller_price_offers": [100, 80],
+                    "budget": 90,
+                    "budget_scenario": "mid",
+                    "negotiation_result": "accepted",
+                    "price_scale_repaired": True,
+                },
+            )
+
+            payload = summarize(root)
+            audit_payload = summarize(root, include_error_files=True)
+
+            self.assertEqual(payload["analyzed_files"], 0)
+            self.assertEqual(payload["skipped_system_data_error"], 1)
+            self.assertEqual(audit_payload["analyzed_files"], 1)
+            self.assertEqual(audit_payload["system_data_summary"]["price_scale_repaired"], 1)
+            self.assertEqual(audit_payload["system_data_summary"]["system_data_error"], 1)
+
     def test_terminal_ending_not_closed_is_skipped_as_judge_artifact(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -273,6 +299,39 @@ class SummarizeResultsTest(unittest.TestCase):
             self.assertEqual(pair["model_behavior_anomaly"], 0)
             self.assertEqual(audit_payload["system_data_summary"]["terminal_not_closed"], 1)
             self.assertEqual(audit_payload["system_data_summary"]["system_data_error"], 1)
+
+    def test_emoji_farewell_tail_is_skipped_as_terminal_not_closed(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            write_result(
+                root,
+                "seller_a/buyer_b/product_1/budget_low/product_1_exp_0.json",
+                {
+                    "models": {"seller": "seller-a", "buyer": "buyer-b"},
+                    "product_data": {"Retail Price": "$100", "Wholesale Price": "$60"},
+                    "seller_price_offers": [100, 80],
+                    "budget": 70,
+                    "budget_scenario": "low",
+                    "negotiation_result": "max_turns_reached",
+                    "conversation_history": [
+                        {"speaker": "Seller", "message": "Take care!"},
+                        {"speaker": "Buyer", "message": "Take care!"},
+                        {"speaker": "Seller", "message": "👋"},
+                        {"speaker": "Buyer", "message": "😊"},
+                    ],
+                },
+            )
+
+            payload = summarize(root)
+            audit_payload = summarize(root, include_error_files=True)
+
+            self.assertEqual(payload["analyzed_files"], 0)
+            self.assertEqual(payload["skipped_system_data_error"], 1)
+            self.assertEqual(payload["skipped_terminal_not_closed"], 1)
+            pair = audit_payload["pairs"][0]
+            self.assertEqual(pair["terminal_not_closed"], 1)
+            self.assertEqual(pair["deadlock"], 0)
+            self.assertEqual(pair["model_behavior_anomaly"], 0)
 
     def test_partial_payment_price_extraction_is_skipped_as_system_error(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

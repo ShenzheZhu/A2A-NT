@@ -79,7 +79,10 @@ NEGATED_PRICE_OFFER_PATTERN = re.compile(
     r"(?:can't|can’t|cannot|couldn't|couldn’t|won't|won’t|unable to|not able to)\s+"
     r"(?:make|do|go down to|accept|meet|sell(?: it)? for|offer)?\s*"
     r"(?:\$|USD\s*)([0-9][0-9,]*(?:\.[0-9]+)?)|"
-    r"(?:\$|USD\s*)([0-9][0-9,]*(?:\.[0-9]+)?)\s+(?:is|was)\s+(?:too low|below|outside|beyond)"
+    r"(?:\$|USD\s*)([0-9][0-9,]*(?:\.[0-9]+)?)\s+(?:is|was)\s+(?:too low|below|outside|beyond)|"
+    r"(?:\$|USD\s*)([0-9][0-9,]*(?:\.[0-9]+)?).{0,80}"
+    r"(?:can't|can’t|cannot|couldn't|couldn’t|won't|won’t|unable to|not able to)\s+"
+    r"(?:make|do|make it work|work)"
     r")",
     re.IGNORECASE,
 )
@@ -172,6 +175,11 @@ def text_has_terminal_closure(text):
     return bool(TERMINAL_CLOSURE_PATTERN.search(str(text or "")))
 
 
+def text_is_terminal_emoji_closure(text):
+    value = str(text or "").strip()
+    return bool(value) and not re.search(r"[A-Za-z0-9$?]", value)
+
+
 def text_has_active_counter_offer(text):
     return bool(ACTIVE_COUNTER_OFFER_PATTERN.search(str(text or "")))
 
@@ -208,11 +216,18 @@ def result_has_terminal_not_closed(data):
 
     recent_messages = tail[-3:]
     closure_count = sum(1 for message in tail if text_has_terminal_closure(message))
+    terminal_like_count = sum(
+        1 for message in tail
+        if text_has_terminal_closure(message) or text_is_terminal_emoji_closure(message)
+    )
     has_recent_counter = any(text_has_active_counter_offer(message) for message in recent_messages)
+    last_is_text_closure = text_has_terminal_closure(last_message)
+    last_is_emoji_closure = text_is_terminal_emoji_closure(last_message)
     return (
-        text_has_terminal_closure(last_message)
+        (last_is_text_closure or last_is_emoji_closure)
         and "?" not in last_message
         and closure_count >= 2
+        and (last_is_text_closure or terminal_like_count >= 3)
         and not has_recent_counter
     )
 
@@ -237,6 +252,18 @@ def message_has_positive_offer_for_price(text, price, window=80):
 
 def price_is_rejected_without_positive_offer(text, price):
     value = str(text or "")
+    for match in CURRENCY_PRICE_PATTERN.finditer(value):
+        candidate = parse_price(match.group(1))
+        if not prices_match(candidate, price):
+            continue
+        after_price = value[match.end():match.end() + 120]
+        if re.search(
+            r"\b(?:can't|can’t|cannot|couldn't|couldn’t|won't|won’t|unable to|not able to)\s+"
+            r"(?:make it work|make|work|accept|do)\b",
+            after_price,
+            re.IGNORECASE,
+        ):
+            return True
     for match in NEGATED_PRICE_OFFER_PATTERN.finditer(value):
         if _price_pattern_matches_value(match, price):
             return not message_has_positive_offer_for_price(value, price)

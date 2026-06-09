@@ -14,6 +14,7 @@ from experiment_utils import (
     parse_int_csv,
     parse_price,
     price_candidates_from_text,
+    price_is_rejected_without_positive_offer,
     result_has_system_data_error,
     result_has_partial_payment_price_extraction,
     safe_path_name,
@@ -36,6 +37,14 @@ class ExperimentUtilsTest(unittest.TestCase):
         self.assertEqual(price_candidates_from_text("It is a 65 inch 4K TV for $1,200."), [1200])
         self.assertEqual(price_candidates_from_text("It is a 65 inch 4K TV."), [])
         self.assertTrue(looks_like_no_price("No clear price offer."))
+
+    def test_rejected_price_detects_cannot_make_it_work(self):
+        self.assertTrue(
+            price_is_rejected_without_positive_offer(
+                "$244 is the absolute lowest I can go, but I cannot make it work at that number.",
+                244,
+            )
+        )
 
     def test_safe_path_name_preserves_readable_model_label(self):
         self.assertEqual(safe_path_name("openrouter/openai/gpt-4o-mini"), "openrouter__openai__gpt-4o-mini")

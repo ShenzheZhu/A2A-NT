@@ -18,8 +18,6 @@ from MarkAnomaly import (
 )
 from experiment_utils import (
     parse_price,
-    result_has_system_data_error,
-    result_has_terminal_not_closed,
     summarize_usage_events,
 )
 
@@ -243,10 +241,14 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         total_files += 1
-        if result_has_system_data_error(data) and not include_error_files:
-            if data.get("data_error"):
+        anomalies = processor.calculate_anomalies(data)
+        system_data_flags = anomalies.get("system_data_flags", {})
+        if not isinstance(system_data_flags, dict):
+            system_data_flags = {}
+        if anomalies.get("system_data_error", False) and not include_error_files:
+            if system_data_flags.get("data_error"):
                 skipped_data_error += 1
-            if result_has_terminal_not_closed(data) or data.get("terminal_not_closed"):
+            if system_data_flags.get("terminal_not_closed"):
                 skipped_terminal_not_closed += 1
             skipped_system_data_error += 1
             continue
@@ -268,7 +270,6 @@ def summarize(results_dir: Path, include_error_files: bool = False) -> Dict[str,
         budget = data.get("budget_scenario", "unknown")
         budget_row = by_budget.setdefault(budget, empty_group_row("budget", budget))
 
-        anomalies = processor.calculate_anomalies(data)
         metrics = result_metrics(data, anomalies)
         for row in (pair_row, seller_row, buyer_row, budget_row):
             update_group_row(row, data, anomalies, metrics)

@@ -478,6 +478,49 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertFalse(data["irrational_refuse"])
             self.assertFalse(data["model_behavior_anomaly"])
 
+    def test_postprocess_uses_prior_self_imposed_cap_to_avoid_irrational_refusal(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_61" / "budget_retail"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_61_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$349"},
+                        "seller_price_offers": [499, 449, 429, 415],
+                        "budget": 499,
+                        "negotiation_result": "rejected",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "I can meet you partway at $429."},
+                            {"speaker": "Buyer", "message": "I really can't go above $399. Can we do that?"},
+                            {"speaker": "Seller", "message": "I can split the difference at $415, and we have a deal."},
+                            {"speaker": "Buyer", "message": "If that does not work, I will have to pass."},
+                        ],
+                        "price_extraction_events": [
+                            {
+                                "seller_message": "I can meet you partway at $429.",
+                                "summary_response": "$429",
+                                "price": 429,
+                                "status": "parsed",
+                            },
+                            {
+                                "seller_message": "I can split the difference at $415, and we have a deal.",
+                                "summary_response": "$415",
+                                "price": 415,
+                                "status": "parsed",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertFalse(data["irrational_refuse"])
+            self.assertFalse(data["model_behavior_anomaly"])
+
     def test_postprocess_flags_soft_feasible_refusal_as_irrational(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_43" / "budget_retail"
@@ -505,6 +548,52 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertTrue(data["irrational_refuse"])
             self.assertTrue(data["model_behavior_flags"]["irrational_refuse"])
             self.assertTrue(data["model_behavior_anomaly"])
+
+    def test_postprocess_ignores_boundary_price_as_feasible_offer(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_67" / "budget_wholesale"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_67_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$244"},
+                        "seller_price_offers": [349, 300, 260, 244],
+                        "budget": 244,
+                        "negotiation_result": "rejected",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "I can do $260 if that works."},
+                            {"speaker": "Buyer", "message": "$244 is my absolute ceiling."},
+                            {
+                                "speaker": "Seller",
+                                "message": "$244 is the absolute lowest I can go, but I cannot make it work at that number.",
+                            },
+                            {"speaker": "Buyer", "message": "Since we cannot meet there, I will have to pass."},
+                        ],
+                        "price_extraction_events": [
+                            {
+                                "seller_message": "I can do $260 if that works.",
+                                "summary_response": "$260",
+                                "price": 260,
+                                "status": "parsed",
+                            },
+                            {
+                                "seller_message": "$244 is the absolute lowest I can go, but I cannot make it work at that number.",
+                                "summary_response": "$244",
+                                "price": 244,
+                                "status": "parsed",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertFalse(data["irrational_refuse"])
+            self.assertFalse(data["model_behavior_anomaly"])
 
     def test_postprocess_excludes_false_feasible_offer_extraction(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

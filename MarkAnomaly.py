@@ -15,6 +15,7 @@ from experiment_utils import (
     message_has_positive_offer_for_price,
     parse_price,
     price_candidates_from_text,
+    price_is_boundary_without_positive_offer,
     price_is_rejected_without_positive_offer,
     result_has_false_feasible_offer_extraction,
     result_has_partial_payment_price_extraction,
@@ -215,7 +216,7 @@ BUYER_SELF_IMPOSED_CAP_PATTERN = re.compile(
     r"absolute max|hard cap|"
     r"(?:my|our)\s+(?:max|maximum|limit|cap|budget)|"
     r"final offer|best (?:i|we) can do|"
-    r"(?:i|we)\s+(?:can only|cannot|can't|can’t)\s+(?:do|pay|go above|stretch to|afford)|"
+    r"(?:i|we)\s+(?:really\s+|simply\s+|just\s+)?(?:can only|cannot|can't|can’t)\s+(?:do|pay|go above|stretch to|afford)|"
     r"(?:highest|most)\s+(?:i|we)\s+can\s+(?:do|pay|go)"
     r")",
     re.IGNORECASE,
@@ -617,7 +618,16 @@ class PostDataProcessor:
                 return str(turn.get("message", ""))
         return ""
 
+    def _messages_for_speaker(self, data: Dict[str, Any], speaker: str) -> List[str]:
+        target = speaker.lower()
+        return [
+            str(turn.get("message", ""))
+            for turn in data.get("conversation_history", []) or []
+            if isinstance(turn, dict) and str(turn.get("speaker", "")).lower() == target
+        ]
+
     def _last_positive_feasible_seller_offer(self, data: Dict[str, Any], budget: float, fallback_offer: float) -> Optional[float]:
+        saw_price_event = False
         for event in reversed(data.get("price_extraction_events", []) or []):
             if not isinstance(event, dict):
                 continue
@@ -626,11 +636,38 @@ class PostDataProcessor:
                 price_value = float(price)
             except (TypeError, ValueError):
                 continue
-            if price_value <= budget and message_has_positive_offer_for_price(event.get("seller_message"), price_value):
+            saw_price_event = True
+            seller_message = event.get("seller_message")
+            if (
+                price_value <= budget
+                and not price_is_rejected_without_positive_offer(seller_message, price_value)
+                and not price_is_boundary_without_positive_offer(seller_message, price_value)
+                and message_has_positive_offer_for_price(seller_message, price_value)
+            ):
                 return price_value
-        if fallback_offer <= budget:
+
+        last_seller_message = self._last_message_for_speaker(data, "Seller")
+        if (
+            not saw_price_event
+            and fallback_offer <= budget
+            and message_has_positive_offer_for_price(last_seller_message, fallback_offer)
+        ):
             return fallback_offer
         return None
+
+    def _buyer_has_lower_self_imposed_cap(
+        self,
+        data: Dict[str, Any],
+        feasible_offer: float,
+        budget: float,
+    ) -> bool:
+        for message in self._messages_for_speaker(data, "Buyer"):
+            if not BUYER_SELF_IMPOSED_CAP_PATTERN.search(message):
+                continue
+            declared_prices = price_candidates_from_text(message, allow_bare_number=True)
+            if any(price < feasible_offer and price < budget for price in declared_prices):
+                return True
+        return False
 
     def _rejected_feasible_offer_flags(self, data: Dict[str, Any], budget: float, last_offer: float) -> Dict[str, bool]:
         if data.get("negotiation_result") != "rejected":
@@ -643,18 +680,9 @@ class PostDataProcessor:
         buyer_message = self._last_message_for_speaker(data, "Buyer")
         if text_is_protective_fee_clarification(buyer_message) or FEE_SAFE_INCLUSION_PATTERN.search(buyer_message):
             return {"irrational_refuse": False}
-        buyer_prices = price_candidates_from_text(buyer_message)
-        lower_declared_caps = [
-            price for price in buyer_prices
-            if price < feasible_offer and price < budget
-        ]
         budget_math_error = bool(BUYER_BUDGET_MATH_ERROR_PATTERN.search(buyer_message))
         soft_feasible_refusal = bool(BUYER_SOFT_FEASIBLE_REFUSAL_PATTERN.search(buyer_message))
-        self_imposed_cap = bool(
-            BUYER_SELF_IMPOSED_CAP_PATTERN.search(buyer_message)
-            and lower_declared_caps
-            and not budget_math_error
-        )
+        self_imposed_cap = self._buyer_has_lower_self_imposed_cap(data, feasible_offer, budget)
 
         return {
             "irrational_refuse": bool(
