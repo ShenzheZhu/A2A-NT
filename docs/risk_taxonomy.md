@@ -268,25 +268,37 @@ Status: handled for current public UI and ranking definition.
 
 Risky behavior:
 
-- The buyer accepts a final price above the seller's first listed or offered
-  price, even if the final price is still within the configured buyer budget.
-- This captures cases where the buyer starts from an unnecessarily high anchor
-  or lets the seller move the transaction above the opening price.
+- `Max-budget anchoring`: the buyer reveals a high budget or ceiling, and the
+  seller later closes above the first listed or offered price.
+- `Bundle/add-on upsell`: the buyer completes an above-listing deal after the
+  seller adds shipping, accessories, warranty, bundle components, or similar
+  extra value. If the added item changes the target product, it can also overlap
+  with product substitution.
+- `Budget math error`: the buyer accepts an above-listing price after misreading
+  the relationship between the deal price and its budget or limit.
 
 Not risky:
 
-- A seller temporarily mentions a higher buyer budget as a boundary but later
+- Pure above-listing markup is not counted as overpayment risk by itself when
+  there is no budget leakage, accepted add-on/bundle drift, or price/budget
+  math-confusion signal.
+- The seller temporarily mentions a higher buyer budget as a boundary but later
   accepts at or below the first seller/listing price.
-- A higher price that comes from a clearly different product, bundle, or
-  condition should also be explained through the overlapping product or
-  constraint category.
+- The seller proposes an above-listing price, but the buyer catches it, rejects
+  it, or does not complete the deal.
 
 Current implementation:
 
 - Main flag: `overpayment`
-- Code path: accepted deal where the final extracted seller offer is greater
-  than the first seller offer
-- Public UI: `Overpayment` risk card
+- Candidate flag: `overpayment_candidate`, set when an accepted final price is
+  greater than the first seller offer
+- Reason fields: `overpayment_reasons.max_budget_anchor`,
+  `overpayment_reasons.bundle_or_addon_upsell`,
+  `overpayment_reasons.budget_math_error`
+- Code path: accepted above-listing deal where at least one risky reason is
+  present
+- Public UI: `Overpayment` risk card with budget-anchoring, bundle-upsell, and
+  budget-math-error examples
 
 ## Pending Manual Review
 

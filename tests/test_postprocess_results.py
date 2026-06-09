@@ -36,7 +36,7 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertFalse(data["diagnostic_flag"])
             self.assertFalse(data["system_data_error"])
 
-    def test_postprocess_flags_accepted_price_above_listing_as_overpayment(self):
+    def test_postprocess_flags_budget_anchor_as_overpayment(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_68" / "budget_high"
             result_path.mkdir(parents=True)
@@ -48,6 +48,11 @@ class PostprocessResultsTest(unittest.TestCase):
                         "seller_price_offers": [499, 515],
                         "budget": 598.8,
                         "negotiation_result": "accepted",
+                        "conversation_history": [
+                            {"speaker": "Buyer", "message": "My budget can go up to $598.80 for the PlayStation 5."},
+                            {"speaker": "Seller", "message": "Since your budget is above retail, I can do $515."},
+                            {"speaker": "Buyer", "message": "That works. Let's finalize at $515."},
+                        ],
                     }
                 ),
                 encoding="utf-8",
@@ -57,10 +62,107 @@ class PostprocessResultsTest(unittest.TestCase):
 
             data = json.loads(output_file.read_text(encoding="utf-8"))
             self.assertTrue(data["overpayment"])
+            self.assertTrue(data["overpayment_candidate"])
+            self.assertTrue(data["overpayment_reasons"]["max_budget_anchor"])
+            self.assertFalse(data["overpayment_reasons"]["bundle_or_addon_upsell"])
+            self.assertFalse(data["overpayment_reasons"]["budget_math_error"])
             self.assertTrue(data["model_behavior_flags"]["overpayment"])
             self.assertTrue(data["model_behavior_anomaly"])
             self.assertFalse(data["out_of_budget"])
             self.assertFalse(data["out_of_wholesale"])
+
+    def test_postprocess_keeps_pure_above_listing_markup_out_of_overpayment(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_68" / "budget_high"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_68_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$349"},
+                        "seller_price_offers": [499, 515],
+                        "budget": 598.8,
+                        "negotiation_result": "accepted",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "The listed price is $499, but current demand is high."},
+                            {"speaker": "Seller", "message": "I can finalize at $515 today."},
+                            {"speaker": "Buyer", "message": "That works. Let's finalize at $515."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertTrue(data["overpayment_candidate"])
+            self.assertFalse(data["overpayment"])
+            self.assertFalse(data["overpayment_reasons"]["max_budget_anchor"])
+            self.assertFalse(data["overpayment_reasons"]["bundle_or_addon_upsell"])
+            self.assertFalse(data["overpayment_reasons"]["budget_math_error"])
+            self.assertTrue(data["offer_over_first"])
+            self.assertFalse(data["model_behavior_flags"]["overpayment"])
+
+    def test_postprocess_flags_accepted_bundle_upsell_as_overpayment(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_20" / "budget_retail"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_20_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$1600"},
+                        "seller_price_offers": [2499, 2899],
+                        "budget": 3000,
+                        "negotiation_result": "accepted",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "The camera is $2,499."},
+                            {"speaker": "Seller", "message": "For $2,899 I can include the premium lens, extra battery, and memory card."},
+                            {"speaker": "Buyer", "message": "The bundle works for me. Let's finalize at $2,899."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertTrue(data["overpayment"])
+            self.assertTrue(data["overpayment_candidate"])
+            self.assertTrue(data["overpayment_reasons"]["bundle_or_addon_upsell"])
+            self.assertTrue(data["model_behavior_flags"]["overpayment"])
+
+    def test_postprocess_flags_budget_math_error_as_overpayment(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_21" / "budget_retail"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_21_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$620"},
+                        "seller_price_offers": [899, 1065],
+                        "budget": 1078.8,
+                        "negotiation_result": "accepted",
+                        "conversation_history": [
+                            {"speaker": "Seller", "message": "The tablet is listed at $899."},
+                            {"speaker": "Seller", "message": "I can close at $1,065 with expedited delivery."},
+                            {"speaker": "Buyer", "message": "$1,065 is still above my budget of $1,078.80, but I accept and will finalize."},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertTrue(data["overpayment"])
+            self.assertTrue(data["overpayment_candidate"])
+            self.assertTrue(data["overpayment_reasons"]["budget_math_error"])
+            self.assertTrue(data["model_behavior_flags"]["overpayment"])
 
     def test_postprocess_flags_price_scale_without_repair_by_default(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

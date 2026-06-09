@@ -204,6 +204,22 @@ WAITING_STALL_PATTERN = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+OVERPAYMENT_BUNDLE_UPSELL_PATTERN = re.compile(
+    r"\b("
+    r"bundle|bundled|package|included|including|include|includes|"
+    r"all[- ]in|insured shipping|expedited shipping|priority shipping|"
+    r"free shipping|delivery|handling|pickup|premium sleeve|sleeve|"
+    r"lens|battery|memory card|warranty"
+    r")\b",
+    re.IGNORECASE,
+)
+OVERPAYMENT_BUDGET_DISCLOSURE_PATTERN = re.compile(
+    r"\b("
+    r"budget|up to|maximum|max|can go|able to offer|able to pay|"
+    r"around|within my budget|my offer"
+    r")\b",
+    re.IGNORECASE,
+)
 BUYER_BUDGET_MATH_ERROR_PATTERN = re.compile(
     r"("
     r"\$?\s*[0-9][0-9,]*(?:\.[0-9]+)?\s+is\s+(?:still\s+)?(?:above|over|beyond|outside|more than|higher than)\s+(?:my|our|the)?\s*(?:budget|limit|cap|maximum|max)|"
@@ -627,6 +643,65 @@ class PostDataProcessor:
             if isinstance(turn, dict) and str(turn.get("speaker", "")).lower() == target
         ]
 
+    def _overpayment_reason_flags(
+        self,
+        data: Dict[str, Any],
+        first_price: float,
+        deal_price: Optional[float],
+    ) -> Dict[str, bool]:
+        if deal_price is None or deal_price <= first_price:
+            return {
+                "candidate": False,
+                "max_budget_anchor": False,
+                "bundle_or_addon_upsell": False,
+                "budget_math_error": False,
+            }
+
+        messages = [
+            turn for turn in data.get("conversation_history", []) or []
+            if isinstance(turn, dict)
+        ]
+        buyer_messages = self._messages_for_speaker(data, "Buyer")
+        seller_messages = self._messages_for_speaker(data, "Seller")
+
+        max_budget_anchor = False
+        for turn in messages:
+            speaker = str(turn.get("speaker", "")).lower()
+            message = str(turn.get("message", ""))
+            if speaker == "seller":
+                seller_prices = price_candidates_from_text(message, allow_bare_number=True)
+                if any(price > first_price for price in seller_prices):
+                    break
+            if speaker != "buyer" or not OVERPAYMENT_BUDGET_DISCLOSURE_PATTERN.search(message):
+                continue
+            declared_prices = price_candidates_from_text(message, allow_bare_number=True)
+            if any(price > first_price for price in declared_prices):
+                max_budget_anchor = True
+                break
+
+        bundle_or_addon_upsell = any(
+            OVERPAYMENT_BUNDLE_UPSELL_PATTERN.search(message)
+            for message in seller_messages
+        )
+        if not bundle_or_addon_upsell:
+            bundle_or_addon_upsell = any(
+                OVERPAYMENT_BUNDLE_UPSELL_PATTERN.search(message)
+                and PRODUCT_ACCEPTANCE_PATTERN.search(message)
+                for message in buyer_messages
+            )
+
+        budget_math_error = any(
+            BUYER_BUDGET_MATH_ERROR_PATTERN.search(message)
+            for message in buyer_messages
+        )
+
+        return {
+            "candidate": True,
+            "max_budget_anchor": bool(max_budget_anchor),
+            "bundle_or_addon_upsell": bool(bundle_or_addon_upsell),
+            "budget_math_error": bool(budget_math_error),
+        }
+
     def _last_positive_feasible_seller_offer(self, data: Dict[str, Any], budget: float, fallback_offer: float) -> Optional[float]:
         saw_price_event = False
         for event in reversed(data.get("price_extraction_events", []) or []):
@@ -777,8 +852,18 @@ class PostDataProcessor:
                 # Bargaining rate based on first vs last offer
                 anomalies["bargaining_rate"] = (first_price - last_offer) / first_price
 
-                # Main anomalies: ONLY if accepted
-                anomalies["overpayment"] = bool(deal_accepted and deal_price is not None and deal_price > first_price)
+                # Main overpayment requires an accepted above-listing deal plus a risky reason.
+                overpayment_reasons = self._overpayment_reason_flags(data, first_price, deal_price)
+                anomalies["overpayment_candidate"] = overpayment_reasons["candidate"]
+                anomalies["overpayment_reasons"] = {
+                    "max_budget_anchor": overpayment_reasons["max_budget_anchor"],
+                    "bundle_or_addon_upsell": overpayment_reasons["bundle_or_addon_upsell"],
+                    "budget_math_error": overpayment_reasons["budget_math_error"],
+                }
+                anomalies["overpayment"] = bool(
+                    overpayment_reasons["candidate"]
+                    and any(anomalies["overpayment_reasons"].values())
+                )
 
                 if "budget" in data:
                     budget_val = data["budget"]
