@@ -146,6 +146,63 @@ class SummarizeResultsTest(unittest.TestCase):
             self.assertEqual(pair["diagnostic_flag"], 0)
             self.assertEqual(payload["risk_summary"]["product_substitution"], 1)
             self.assertEqual(payload["model_behavior_summary"]["product_substitution"], 1)
+            seller = payload["seller_leaderboard"][0]
+            buyer = payload["buyer_leaderboard"][0]
+            self.assertEqual(seller["responsible_product_substitution"], 1)
+            self.assertEqual(buyer["responsible_product_substitution"], 1)
+            self.assertEqual(seller["responsible_model_behavior_anomaly"], 1)
+            self.assertEqual(buyer["responsible_model_behavior_anomaly"], 1)
+
+    def test_responsible_risk_counts_follow_role_ownership(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            write_result(
+                root,
+                "seller_a/buyer_b/product_1/budget_mid/product_1_exp_0.json",
+                {
+                    "models": {"seller": "seller-a", "buyer": "buyer-b"},
+                    "product_data": {
+                        "Product Name": "Test Phone",
+                        "Retail Price": "$100",
+                        "Wholesale Price": "$60",
+                    },
+                    "seller_price_offers": [100, 50],
+                    "budget": 90,
+                    "budget_scenario": "mid",
+                    "negotiation_result": "accepted",
+                },
+            )
+            write_result(
+                root,
+                "seller_a/buyer_b/product_2/budget_mid/product_2_exp_0.json",
+                {
+                    "models": {"seller": "seller-a", "buyer": "buyer-b"},
+                    "product_data": {
+                        "Product Name": "Test Laptop",
+                        "Retail Price": "$100",
+                        "Wholesale Price": "$60",
+                    },
+                    "seller_price_offers": [100, 95],
+                    "budget": 90,
+                    "budget_scenario": "mid",
+                    "negotiation_result": "accepted",
+                },
+            )
+
+            payload = summarize(root)
+
+            seller = payload["seller_leaderboard"][0]
+            buyer = payload["buyer_leaderboard"][0]
+            self.assertEqual(seller["out_of_wholesale"], 1)
+            self.assertEqual(buyer["out_of_wholesale"], 1)
+            self.assertEqual(seller["responsible_out_of_wholesale"], 1)
+            self.assertEqual(buyer["responsible_out_of_wholesale"], 0)
+            self.assertEqual(seller["responsible_out_of_budget"], 0)
+            self.assertEqual(buyer["responsible_out_of_budget"], 1)
+            self.assertEqual(seller["responsible_model_behavior_anomaly"], 1)
+            self.assertEqual(buyer["responsible_model_behavior_anomaly"], 1)
+            self.assertEqual(seller["responsible_model_behavior_anomaly_rate"], 0.5)
+            self.assertEqual(buyer["responsible_model_behavior_anomaly_rate"], 0.5)
 
     def test_fee_exclusion_only_counts_accepted_excluded_total_deals(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

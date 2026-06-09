@@ -121,6 +121,34 @@ def combined_rate(
     return round((combined_count(left, right, key) / episodes) * 100, 2)
 
 
+def responsible_count(row: Dict[str, Any], key: str) -> int:
+    return int(numeric(row.get(f"responsible_{key}", row.get(key))))
+
+
+def responsible_anomaly_count(row: Dict[str, Any]) -> int:
+    return int(numeric(row.get("responsible_model_behavior_anomaly", row.get("model_behavior_anomaly"))))
+
+
+def rate_from_count(count: int, episodes: int) -> Optional[float]:
+    if episodes <= 0:
+        return None
+    return round((count / episodes) * 100, 2)
+
+
+def responsible_role_rate(row: Dict[str, Any], key: str) -> Optional[float]:
+    episodes = int(numeric(row.get("episodes")))
+    return rate_from_count(responsible_count(row, key), episodes)
+
+
+def combined_responsible_rate(
+    seller: Dict[str, Any],
+    buyer: Dict[str, Any],
+    key: str,
+    episodes: int,
+) -> Optional[float]:
+    return rate_from_count(responsible_count(seller, key) + responsible_count(buyer, key), episodes)
+
+
 def build_risk_rows(
     catalog: Dict[str, Dict[str, str]],
     seller_rows: Dict[str, Dict[str, Any]],
@@ -133,6 +161,8 @@ def build_risk_rows(
         seller_episodes = int(numeric(seller.get("episodes")))
         buyer_episodes = int(numeric(buyer.get("episodes")))
         episodes = seller_episodes + buyer_episodes
+        seller_risk_cases = responsible_anomaly_count(seller)
+        buyer_risk_cases = responsible_anomaly_count(buyer)
         rows.append(
             {
                 "model": meta["label"],
@@ -140,17 +170,23 @@ def build_risk_rows(
                 "cohort": meta["cohort"],
                 "cohortLabel": meta["cohortLabel"],
                 "riskEpisodes": episodes,
-                "riskCases": combined_count(seller, buyer, "model_behavior_anomaly"),
-                "riskRate": combined_rate(seller, buyer, "model_behavior_anomaly", episodes),
-                "feeExclusionRate": combined_rate(seller, buyer, "fee_exclusion", episodes),
-                "irrationalRefusalRate": combined_rate(seller, buyer, "irrational_refuse", episodes),
-                "outOfBudgetRate": combined_rate(seller, buyer, "out_of_budget", episodes),
-                "outOfWholesaleRate": combined_rate(seller, buyer, "out_of_wholesale", episodes),
-                "productSubstitutionRate": combined_rate(seller, buyer, "product_substitution", episodes),
-                "deadlockRate": combined_rate(seller, buyer, "deadlock", episodes),
-                "overpaymentRate": combined_rate(seller, buyer, "overpayment", episodes),
-                "sellerRiskRate": pct(seller.get("model_behavior_anomaly_rate")),
-                "buyerRiskRate": pct(buyer.get("model_behavior_anomaly_rate")),
+                "riskCases": seller_risk_cases + buyer_risk_cases,
+                "riskRate": rate_from_count(seller_risk_cases + buyer_risk_cases, episodes),
+                "feeExclusionRate": responsible_role_rate(buyer, "fee_exclusion"),
+                "irrationalRefusalRate": responsible_role_rate(buyer, "irrational_refuse"),
+                "outOfBudgetRate": responsible_role_rate(buyer, "out_of_budget"),
+                "outOfWholesaleRate": responsible_role_rate(seller, "out_of_wholesale"),
+                "productSubstitutionRate": combined_responsible_rate(
+                    seller, buyer, "product_substitution", episodes
+                ),
+                "deadlockRate": combined_responsible_rate(seller, buyer, "deadlock", episodes),
+                "overpaymentRate": responsible_role_rate(buyer, "overpayment"),
+                "sellerRiskRate": pct(
+                    seller.get("responsible_model_behavior_anomaly_rate", seller.get("model_behavior_anomaly_rate"))
+                ),
+                "buyerRiskRate": pct(
+                    buyer.get("responsible_model_behavior_anomaly_rate", buyer.get("model_behavior_anomaly_rate"))
+                ),
             }
         )
     rows.sort(

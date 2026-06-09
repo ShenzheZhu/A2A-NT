@@ -35,8 +35,14 @@ class BuildLeaderboardDataTest(unittest.TestCase):
                     "model_behavior_anomaly": 1,
                     "fee_exclusion": 1,
                     "out_of_budget": 0,
-                    "out_of_wholesale": 0,
+                    "out_of_wholesale": 1,
                     "overpayment": 0,
+                    "responsible_model_behavior_anomaly": 1,
+                    "responsible_fee_exclusion": 0,
+                    "responsible_out_of_budget": 0,
+                    "responsible_out_of_wholesale": 1,
+                    "responsible_overpayment": 0,
+                    "responsible_model_behavior_anomaly_rate": 0.5,
                 },
                 {
                     "seller": "provider/bridge-model",
@@ -50,6 +56,12 @@ class BuildLeaderboardDataTest(unittest.TestCase):
                     "out_of_budget": 0,
                     "out_of_wholesale": 0,
                     "overpayment": 0,
+                    "responsible_model_behavior_anomaly": 0,
+                    "responsible_fee_exclusion": 0,
+                    "responsible_out_of_budget": 0,
+                    "responsible_out_of_wholesale": 0,
+                    "responsible_overpayment": 0,
+                    "responsible_model_behavior_anomaly_rate": 0,
                 },
             ],
             "buyer_leaderboard": [
@@ -62,6 +74,12 @@ class BuildLeaderboardDataTest(unittest.TestCase):
                     "out_of_budget": 1,
                     "out_of_wholesale": 0,
                     "overpayment": 1,
+                    "responsible_model_behavior_anomaly": 1,
+                    "responsible_fee_exclusion": 0,
+                    "responsible_out_of_budget": 1,
+                    "responsible_out_of_wholesale": 0,
+                    "responsible_overpayment": 1,
+                    "responsible_model_behavior_anomaly_rate": 0.5,
                 },
                 {
                     "buyer": "provider/bridge-model",
@@ -72,6 +90,12 @@ class BuildLeaderboardDataTest(unittest.TestCase):
                     "out_of_budget": 0,
                     "out_of_wholesale": 0,
                     "overpayment": 0,
+                    "responsible_model_behavior_anomaly": 0,
+                    "responsible_fee_exclusion": 0,
+                    "responsible_out_of_budget": 0,
+                    "responsible_out_of_wholesale": 0,
+                    "responsible_overpayment": 0,
+                    "responsible_model_behavior_anomaly_rate": 0,
                 },
             ],
             "model_behavior_summary": {
@@ -102,10 +126,12 @@ class BuildLeaderboardDataTest(unittest.TestCase):
         self.assertEqual(risk_rows["provider/new-model"]["riskCases"], 2)
         self.assertEqual(risk_rows["provider/new-model"]["riskEpisodes"], 4)
         self.assertEqual(risk_rows["provider/new-model"]["riskRate"], 50.0)
-        self.assertEqual(risk_rows["provider/new-model"]["feeExclusionRate"], 25.0)
-        self.assertEqual(risk_rows["provider/new-model"]["outOfBudgetRate"], 25.0)
-        self.assertEqual(risk_rows["provider/new-model"]["outOfWholesaleRate"], 0.0)
-        self.assertEqual(risk_rows["provider/new-model"]["overpaymentRate"], 25.0)
+        self.assertEqual(risk_rows["provider/new-model"]["feeExclusionRate"], 0.0)
+        self.assertEqual(risk_rows["provider/new-model"]["outOfBudgetRate"], 50.0)
+        self.assertEqual(risk_rows["provider/new-model"]["outOfWholesaleRate"], 50.0)
+        self.assertEqual(risk_rows["provider/new-model"]["overpaymentRate"], 50.0)
+        self.assertEqual(risk_rows["provider/new-model"]["sellerRiskRate"], 50.0)
+        self.assertEqual(risk_rows["provider/new-model"]["buyerRiskRate"], 50.0)
         self.assertEqual(risk_rows["provider/bridge-model"]["riskRate"], 0.0)
         details = payload["experimentDetails"]
         self.assertEqual(details["modelSet"]["models"], ["New Model", "Bridge Model"])

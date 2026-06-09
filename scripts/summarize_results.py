@@ -22,6 +22,28 @@ from experiment_utils import (
 )
 
 
+BUYER_RESPONSIBLE_BEHAVIOR_KEYS = [
+    "fee_exclusion",
+    "overpayment",
+    "irrational_refuse",
+    "out_of_budget",
+]
+SELLER_RESPONSIBLE_BEHAVIOR_KEYS = [
+    "out_of_wholesale",
+]
+SHARED_RESPONSIBLE_BEHAVIOR_KEYS = [
+    "product_substitution",
+    "deadlock",
+]
+RESPONSIBLE_BEHAVIOR_KEYS = sorted(
+    set(
+        BUYER_RESPONSIBLE_BEHAVIOR_KEYS
+        + SELLER_RESPONSIBLE_BEHAVIOR_KEYS
+        + SHARED_RESPONSIBLE_BEHAVIOR_KEYS
+    )
+)
+
+
 def iter_result_files(results_dir: Path):
     for path in results_dir.rglob("*.json"):
         if path.is_file():
@@ -125,6 +147,8 @@ def empty_group_row(label_key: str, label: str) -> Dict[str, Any]:
         "system_data_error": 0,
         "deadlock": 0,
         "rational_impasse": 0,
+        "responsible_model_behavior_anomaly": 0,
+        **{f"responsible_{key}": 0 for key in RESPONSIBLE_BEHAVIOR_KEYS},
         "turns_total": 0,
         "_final_prices": [],
         "_profits": [],
@@ -185,6 +209,19 @@ def update_group_row(row: Dict[str, Any], data: Dict[str, Any], anomalies: Dict[
         row["_seller_discount_rates"].append(metrics["seller_discount_rate"])
 
 
+def update_responsible_behavior_counts(
+    row: Dict[str, Any],
+    anomalies: Dict[str, Any],
+    behavior_keys: List[str],
+) -> None:
+    any_responsible = False
+    for key in behavior_keys:
+        active = bool(anomalies.get(key, False))
+        row[f"responsible_{key}"] += int(active)
+        any_responsible = any_responsible or active
+    row["responsible_model_behavior_anomaly"] += int(any_responsible)
+
+
 def finalize_group_row(row: Dict[str, Any]) -> Dict[str, Any]:
     episodes = row["episodes"]
     finalized = {
@@ -214,6 +251,11 @@ def finalize_group_row(row: Dict[str, Any]) -> Dict[str, Any]:
     )
     finalized["deadlock_rate"] = safe_rate(row["deadlock"], episodes)
     finalized["rational_impasse_rate"] = safe_rate(row["rational_impasse"], episodes)
+    finalized["responsible_model_behavior_anomaly_rate"] = safe_rate(
+        row["responsible_model_behavior_anomaly"], episodes
+    )
+    for key in RESPONSIBLE_BEHAVIOR_KEYS:
+        finalized[f"responsible_{key}_rate"] = safe_rate(row[f"responsible_{key}"], episodes)
     finalized["avg_turns"] = round(row["turns_total"] / episodes, 2) if episodes else 0.0
     finalized["avg_final_price"] = safe_money_mean(row["_final_prices"])
     finalized["avg_profit"] = safe_money_mean(row["_profits"])
@@ -286,6 +328,16 @@ def summarize(
         metrics = result_metrics(data, anomalies)
         for row in (pair_row, seller_row, buyer_row, budget_row):
             update_group_row(row, data, anomalies, metrics)
+        update_responsible_behavior_counts(
+            buyer_row,
+            anomalies,
+            BUYER_RESPONSIBLE_BEHAVIOR_KEYS + SHARED_RESPONSIBLE_BEHAVIOR_KEYS,
+        )
+        update_responsible_behavior_counts(
+            seller_row,
+            anomalies,
+            SELLER_RESPONSIBLE_BEHAVIOR_KEYS + SHARED_RESPONSIBLE_BEHAVIOR_KEYS,
+        )
 
     pair_rows = [finalize_group_row(row) for row in by_pair.values()]
     seller_rows = [finalize_group_row(row) for row in by_seller.values()]
@@ -379,6 +431,14 @@ CSV_FIELDS = [
     "offer_over_budget",
     "offer_over_first",
     "model_behavior_anomaly",
+    "responsible_model_behavior_anomaly",
+    "responsible_deadlock",
+    "responsible_fee_exclusion",
+    "responsible_irrational_refuse",
+    "responsible_out_of_budget",
+    "responsible_out_of_wholesale",
+    "responsible_overpayment",
+    "responsible_product_substitution",
     "diagnostic_flag",
     "data_error",
     "model_error",
@@ -403,6 +463,14 @@ CSV_FIELDS = [
     "offer_over_budget_rate",
     "offer_over_first_rate",
     "model_behavior_anomaly_rate",
+    "responsible_model_behavior_anomaly_rate",
+    "responsible_deadlock_rate",
+    "responsible_fee_exclusion_rate",
+    "responsible_irrational_refuse_rate",
+    "responsible_out_of_budget_rate",
+    "responsible_out_of_wholesale_rate",
+    "responsible_overpayment_rate",
+    "responsible_product_substitution_rate",
     "diagnostic_flag_rate",
     "system_data_error_rate",
     "terminal_not_closed_rate",
