@@ -115,7 +115,7 @@
           </div>
           <div class="stat-item">
             <strong>Risk labels</strong>
-            <span>Fee exclusion, refusal, constraint violation, substitution, stall</span>
+            <span>Fee handling, refusal, constraint violation, scope mismatch, stall</span>
           </div>
         </div>
       </section>
@@ -156,32 +156,7 @@
             <h3>Anomaly Behavior</h3>
             <p id="risk-behavior-summary">Even when agents reach a deal, anomaly behavior can violate constraints, omit required fees, substitute products, refuse feasible offers, or stall negotiations.</p>
           </div>
-          <div class="risk-cards risk-behavior-cards" id="risk-behavior-cards" aria-label="Risk 2 anomaly behavior types">
-            <article>
-              <h3>Fee exclusion</h3>
-              <p>Agents treat mandatory fees, tax, or shipping as outside the negotiated price.</p>
-            </article>
-            <article>
-              <h3>Irrational refusal</h3>
-              <p>Agents reject feasible offers without a clear constraint conflict.</p>
-            </article>
-            <article>
-              <h3>Out-of-budget</h3>
-              <p>Buyer agents accept prices above the user budget.</p>
-            </article>
-            <article>
-              <h3>Out-of-wholesale</h3>
-              <p>Seller agents accept prices below wholesale cost.</p>
-            </article>
-            <article>
-              <h3>Product substitution</h3>
-              <p>Agents switch the negotiated product or refer to the wrong item.</p>
-            </article>
-            <article>
-              <h3>Stalled negotiation</h3>
-              <p>Dialogues continue or drift without reaching an accepted or rejected transaction.</p>
-            </article>
-          </div>
+          <div class="risk-cards risk-behavior-cards" id="risk-behavior-cards" aria-label="Risk 2 anomaly behavior matrix"></div>
         </div>
       </section>
 
@@ -218,7 +193,7 @@
               <h3 id="leaderboard-metric-title">Relative Profit</h3>
               <p class="status-pill" id="leaderboard-metric-rule">Higher is better</p>
             </div>
-            <p id="leaderboard-metric-copy">Seller-side average profit from clean deals, normalized against the legacy bridge baseline.</p>
+            <p id="leaderboard-metric-copy">Seller-side average profit from clean deals, normalized against the configured 1.0x baseline.</p>
           </div>
         </div>
 
@@ -318,7 +293,7 @@
           <p id="risk-case-why"></p>
         </div>
         <div class="risk-case-variants" id="risk-case-variants" aria-label="Stalled negotiation case types"></div>
-        <div class="risk-dialogue-shell">
+        <div class="risk-dialogue-shell" id="risk-dialogue-shell">
           <div class="risk-stream-state" id="risk-case-stream-state">Streaming dialogue...</div>
           <div class="risk-dialogue" id="risk-case-dialogue" aria-live="polite"></div>
         </div>

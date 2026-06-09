@@ -823,25 +823,153 @@ body.modal-open {
 }
 
 .risk-behavior-cards {
-  gap: 10px;
+  display: block;
   margin-top: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.risk-behavior-cards article,
-.risk-behavior-cards .risk-case-card {
-  min-height: 118px;
-  padding: 15px 14px;
+.risk-matrix-scroll {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 6px;
 }
 
-.risk-behavior-cards h3 {
+.risk-matrix {
+  display: grid;
+  grid-template-columns: minmax(128px, 0.72fr) repeat(5, minmax(142px, 1fr));
+  gap: 8px;
+  min-width: 900px;
+}
+
+.risk-matrix-box {
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  box-shadow: 0 10px 24px rgba(70, 63, 55, 0.05);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background-color 160ms ease;
+}
+
+.risk-matrix-box[data-risk-key],
+.risk-outcome-pill {
+  cursor: pointer;
+}
+
+.risk-matrix-box[data-risk-key]:hover,
+.risk-matrix-box[data-risk-key]:focus-visible,
+.risk-outcome-pill:hover,
+.risk-outcome-pill:focus-visible {
+  border-color: #bcae9f;
+  box-shadow: 0 14px 30px rgba(70, 63, 55, 0.1);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.risk-matrix-corner,
+.risk-matrix-action,
+.risk-matrix-actor {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+}
+
+.risk-matrix-corner {
+  background: #f6f3ef;
+}
+
+.risk-matrix-action {
+  background: #f9f7f3;
+}
+
+.risk-matrix-actor {
+  background: #f5f7f6;
+}
+
+.risk-matrix-box span {
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.risk-matrix-box strong {
+  color: var(--ink);
   font-size: 14px;
-  line-height: 1.15;
+  font-weight: 900;
+  line-height: 1.18;
 }
 
-.risk-behavior-cards p {
-  font-size: 12px;
-  line-height: 1.35;
+.risk-matrix-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.risk-matrix-cell.empty {
+  align-content: center;
+  justify-content: center;
+  background: #fbfaf8;
+}
+
+.risk-matrix-empty {
+  color: #9a9188;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.risk-outcome-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.risk-outcome-overpayment {
+  border-color: #d6a691;
+  background: #f2ddd3;
+  color: #7f4635;
+}
+
+.risk-outcome-budget {
+  border-color: #d6ba78;
+  background: #f4e8c7;
+  color: #75581d;
+}
+
+.risk-outcome-wholesale {
+  border-color: #9fbea8;
+  background: #dfeadf;
+  color: #3f6b4c;
+}
+
+.risk-outcome-refusal {
+  border-color: #cdbda8;
+  background: #eee5d8;
+  color: #685743;
+}
+
+.risk-outcome-stalled {
+  border-color: #b6bec4;
+  background: #e7eaec;
+  color: #4f5960;
+}
+
+.risk-outcome-scope {
+  border-color: #b9aed0;
+  background: #e8e2ef;
+  color: #5a4c72;
 }
 
 .risk-case-dialog {
