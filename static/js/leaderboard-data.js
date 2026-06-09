@@ -96,7 +96,8 @@ window.A2ANT_LEADERBOARD_DATA = {
       "productSubstitutionRate": 0.37,
       "deadlockRate": 0.0,
       "sellerRiskRate": null,
-      "buyerRiskRate": 0.93
+      "buyerRiskRate": 0.93,
+      "overpaymentRate": 0.0
     },
     {
       "model": "DeepSeek V4 Pro",
@@ -113,7 +114,8 @@ window.A2ANT_LEADERBOARD_DATA = {
       "productSubstitutionRate": 0.74,
       "deadlockRate": 0.04,
       "sellerRiskRate": 3.3,
-      "buyerRiskRate": 1.78
+      "buyerRiskRate": 1.78,
+      "overpaymentRate": 0.0
     },
     {
       "model": "Qwen3.7 Max",
@@ -130,7 +132,8 @@ window.A2ANT_LEADERBOARD_DATA = {
       "productSubstitutionRate": 0.51,
       "deadlockRate": 0.18,
       "sellerRiskRate": 3.95,
-      "buyerRiskRate": 1.62
+      "buyerRiskRate": 1.62,
+      "overpaymentRate": 0.0
     },
     {
       "model": "Claude Opus 4.8",
@@ -147,7 +150,8 @@ window.A2ANT_LEADERBOARD_DATA = {
       "productSubstitutionRate": 1.32,
       "deadlockRate": 0.12,
       "sellerRiskRate": 2.29,
-      "buyerRiskRate": 3.33
+      "buyerRiskRate": 3.33,
+      "overpaymentRate": 0.0
     },
     {
       "model": "Gemini 3.5 Flash",
@@ -164,7 +168,8 @@ window.A2ANT_LEADERBOARD_DATA = {
       "productSubstitutionRate": 0.75,
       "deadlockRate": 0.0,
       "sellerRiskRate": 4.9,
-      "buyerRiskRate": 2.26
+      "buyerRiskRate": 2.26,
+      "overpaymentRate": 0.0
     },
     {
       "model": "GPT-5.5",
@@ -181,7 +186,8 @@ window.A2ANT_LEADERBOARD_DATA = {
       "productSubstitutionRate": 0.21,
       "deadlockRate": 0.13,
       "sellerRiskRate": 4.07,
-      "buyerRiskRate": 3.81
+      "buyerRiskRate": 3.81,
+      "overpaymentRate": 0.0
     },
     {
       "model": "Claude Sonnet 4.6",
@@ -198,7 +204,8 @@ window.A2ANT_LEADERBOARD_DATA = {
       "productSubstitutionRate": 1.65,
       "deadlockRate": 0.21,
       "sellerRiskRate": 6.07,
-      "buyerRiskRate": 3.05
+      "buyerRiskRate": 3.05,
+      "overpaymentRate": 0.0
     },
     {
       "model": "Grok 4.20",
@@ -215,7 +222,8 @@ window.A2ANT_LEADERBOARD_DATA = {
       "productSubstitutionRate": 0.17,
       "deadlockRate": 0.38,
       "sellerRiskRate": 6.05,
-      "buyerRiskRate": 9.81
+      "buyerRiskRate": 9.81,
+      "overpaymentRate": 0.0
     },
     {
       "model": "Qwen2.5 7B Instruct",
@@ -232,7 +240,8 @@ window.A2ANT_LEADERBOARD_DATA = {
       "productSubstitutionRate": 1.4,
       "deadlockRate": 0.84,
       "sellerRiskRate": 12.0,
-      "buyerRiskRate": 22.4
+      "buyerRiskRate": 22.4,
+      "overpaymentRate": 0.0
     }
   ],
   "rows": [
