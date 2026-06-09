@@ -9,6 +9,7 @@ const experimentModelSet = document.querySelector("#experiment-model-set");
 const riskBehaviorCards = document.querySelector("#risk-behavior-cards");
 const riskBehaviorSummary = document.querySelector("#risk-behavior-summary");
 const riskCaseModal = document.querySelector("#risk-case-modal");
+const riskCaseCategory = document.querySelector("#risk-case-category");
 const riskCaseTitle = document.querySelector("#risk-case-title");
 const riskCaseTrigger = document.querySelector("#risk-case-trigger");
 const riskCaseWhy = document.querySelector("#risk-case-why");
@@ -1045,6 +1046,21 @@ function renderHighlightedText(text, highlights = []) {
   return rendered;
 }
 
+function renderRiskCaseTitle(title) {
+  const parts = String(title || "Risk behavior").split(/\s*->\s*/);
+  if (parts.length === 1) {
+    return escapeHtml(parts[0]);
+  }
+  return parts.map(escapeHtml).join(' <span class="risk-title-arrow">→</span> ');
+}
+
+function getRiskCaseCategory(riskKey, caseData) {
+  if (caseData?.category) return caseData.category;
+  if (String(riskKey || "").startsWith("actor_")) return "Risk Owner";
+  if (String(riskKey || "").startsWith("action_")) return "Action Risk";
+  return "Outcome Risk";
+}
+
 function renderRiskOutcomePill(item) {
   const outcome = riskOutcomeLabels[item.outcome];
   if (!outcome) return "";
@@ -1065,7 +1081,7 @@ function renderRiskBehavior() {
 
   const actionHeaders = riskMatrixActions.map((action) => `
     <button class="risk-matrix-box risk-matrix-action" type="button" data-risk-key="${action.modalKey}" aria-haspopup="dialog" aria-controls="risk-case-modal">
-      <span>Action</span>
+      <span>Action Risk</span>
       <strong>${escapeHtml(action.title)}</strong>
     </button>
   `).join("");
@@ -1124,23 +1140,27 @@ function streamRiskCase(caseData) {
   const messages = Array.isArray(caseData.messages) ? caseData.messages : [];
   if (!messages.length) {
     riskCaseStreamState.textContent = "";
+    riskCaseStreamState.hidden = true;
     return;
   }
+  riskCaseStreamState.hidden = false;
   riskCaseStreamState.textContent = "Streaming dialogue...";
 
   messages.forEach((message, index) => {
     const timer = window.setTimeout(() => {
       renderRiskCaseMessage(message);
       if (index === messages.length - 1) {
-        riskCaseStreamState.textContent = "Risk phrase highlighted in red.";
+        riskCaseStreamState.textContent = "";
+        riskCaseStreamState.hidden = true;
       }
     }, 220 + index * 360);
     riskCaseTimers.push(timer);
   });
 }
 
-function setRiskCaseContent(caseData) {
-  if (riskCaseTitle) riskCaseTitle.textContent = caseData.title;
+function setRiskCaseContent(caseData, category = "Outcome Risk") {
+  if (riskCaseCategory) riskCaseCategory.textContent = category;
+  if (riskCaseTitle) riskCaseTitle.innerHTML = renderRiskCaseTitle(caseData.title);
   if (riskCaseTrigger) riskCaseTrigger.textContent = caseData.trigger;
   if (riskCaseWhy) riskCaseWhy.textContent = caseData.why;
   const hasMessages = Array.isArray(caseData.messages) && caseData.messages.length > 0;
@@ -1148,7 +1168,7 @@ function setRiskCaseContent(caseData) {
   streamRiskCase(caseData);
 }
 
-function renderRiskCaseVariants(caseData) {
+function renderRiskCaseVariants(caseData, category) {
   if (!riskCaseVariants) return;
   const variants = Array.isArray(caseData.variants) ? caseData.variants : [];
   if (!variants.length) {
@@ -1171,7 +1191,7 @@ function renderRiskCaseVariants(caseData) {
       riskCaseVariants.querySelectorAll("[data-risk-variant]").forEach((candidate) => {
         candidate.classList.toggle("active", candidate === button);
       });
-      setRiskCaseContent(variant);
+      setRiskCaseContent(variant, category);
     });
   });
 }
@@ -1188,7 +1208,10 @@ function setRiskCaseOpen(open, riskKey = null) {
     clearRiskCaseTimers();
     riskCaseModal.hidden = true;
     if (riskCaseDialogue) riskCaseDialogue.innerHTML = "";
-    if (riskCaseStreamState) riskCaseStreamState.textContent = "";
+    if (riskCaseStreamState) {
+      riskCaseStreamState.textContent = "";
+      riskCaseStreamState.hidden = false;
+    }
     if (riskCaseDialogueShell) riskCaseDialogueShell.hidden = false;
     if (riskCaseVariants) {
       riskCaseVariants.hidden = true;
@@ -1201,11 +1224,12 @@ function setRiskCaseOpen(open, riskKey = null) {
   const caseData = riskCaseExamples[riskKey];
   if (!caseData) return;
   setExperimentDetailsOpen(false);
+  const category = getRiskCaseCategory(riskKey, caseData);
   const defaultCase = Array.isArray(caseData.variants) && caseData.variants.length
     ? caseData.variants[0]
     : caseData;
-  renderRiskCaseVariants(caseData);
-  setRiskCaseContent(defaultCase);
+  renderRiskCaseVariants(caseData, category);
+  setRiskCaseContent(defaultCase, category);
   riskCaseModal.hidden = false;
   updateModalBodyState();
 }

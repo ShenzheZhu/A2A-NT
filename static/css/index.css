@@ -966,6 +966,15 @@ body.modal-open {
   width: min(860px, 100%);
 }
 
+.risk-title-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 10px;
+  color: var(--blue-dark);
+  font-weight: 800;
+}
+
 .risk-case-summary {
   display: grid;
   gap: 8px;
@@ -977,10 +986,10 @@ body.modal-open {
 }
 
 .risk-case-summary span {
-  color: var(--red);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .risk-case-summary p {
