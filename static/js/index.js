@@ -73,8 +73,8 @@ const performanceMetrics = {
 
 const riskMetrics = {
   riskRate: {
-    label: "Overall Risk",
-    title: "Overall Risk",
+    label: "Overall risk",
+    title: "Overall risk",
     rule: "Lower is better",
     copy: "Conversation-level model-behavior anomaly rate across buyer and seller roles; lower values indicate fewer observed risk behaviors.",
     suffix: "%",
@@ -82,10 +82,10 @@ const riskMetrics = {
     sort: "asc"
   },
   feeExclusionRate: {
-    label: "Fee Exclusion",
-    title: "Fee Exclusion",
+    label: "Incomplete price quote",
+    title: "Incomplete price quote",
     rule: "Lower is better",
-    copy: "Rate of conversations where agents omit required fees, tax, shipping, or similar payment components.",
+    copy: "Rate of conversations where fees, tax, shipping, service charges, or required add-ons are separated from the quoted total.",
     suffix: "%",
     decimals: 2,
     sort: "asc"
@@ -100,8 +100,8 @@ const riskMetrics = {
     sort: "asc"
   },
   irrationalRefusalRate: {
-    label: "Refusal",
-    title: "Irrational Refusal",
+    label: "Irrational refusal",
+    title: "Irrational refusal",
     rule: "Lower is better",
     copy: "Rate of conversations where buyer agents reject feasible offers without a real constraint conflict.",
     suffix: "%",
@@ -109,8 +109,8 @@ const riskMetrics = {
     sort: "asc"
   },
   outOfBudgetRate: {
-    label: "Out of Budget",
-    title: "Out of Budget",
+    label: "Out-of-budget",
+    title: "Out-of-budget",
     rule: "Lower is better",
     copy: "Rate of conversations where buyer agents accept prices above the user budget; deal-scope shift can be an underlying cause.",
     suffix: "%",
@@ -118,8 +118,8 @@ const riskMetrics = {
     sort: "asc"
   },
   outOfWholesaleRate: {
-    label: "Out of Wholesale",
-    title: "Out of Wholesale",
+    label: "Out-of-wholesale",
+    title: "Out-of-wholesale",
     rule: "Lower is better",
     copy: "Rate of conversations where seller agents accept prices below wholesale cost; deal-scope shift can be an underlying cause.",
     suffix: "%",
@@ -127,8 +127,8 @@ const riskMetrics = {
     sort: "asc"
   },
   productSubstitutionRate: {
-    label: "Product Mismatch",
-    title: "Product Mismatch",
+    label: "Product mismatch",
+    title: "Product mismatch",
     rule: "Lower is better",
     copy: "Rate of accepted conversations where the final deal no longer matches the requested product, model, variant, or condition.",
     suffix: "%",
@@ -136,10 +136,10 @@ const riskMetrics = {
     sort: "asc"
   },
   deadlockRate: {
-    label: "Stall",
-    title: "Turn-cap Stall",
+    label: "Stalled negotiation",
+    title: "Stalled negotiation",
     rule: "Lower is better",
-    copy: "Rate of conversations that reach the turn cap without an accepted or rejected transaction.",
+    copy: "Rate of risky stalled negotiations that reach the turn cap without an accepted or rejected transaction.",
     suffix: "%",
     decimals: 2,
     sort: "asc"
@@ -192,6 +192,7 @@ const riskMatrixActions = [
   {
     key: "deal_scope_shift",
     title: "Deal-scope shift",
+    displayTitleParts: ["Deal-scope", "shift"],
     modalKey: "action_deal_scope_shift"
   },
   {
@@ -959,6 +960,16 @@ function renderSortOptions(config, selectedMetricKey) {
   leaderboardSortSelect.value = selectedMetricKey;
 }
 
+function getDisplayColumns(config, metricKey) {
+  if (!config.columns.includes(metricKey)) {
+    return config.columns;
+  }
+  return [
+    metricKey,
+    ...config.columns.filter((columnKey) => columnKey !== metricKey)
+  ];
+}
+
 function renderTableHeadings(config, metricKey) {
   const headingIds = [
     "#leaderboard-col-primary",
@@ -970,11 +981,12 @@ function renderTableHeadings(config, metricKey) {
     "#leaderboard-col-septenary",
     "#leaderboard-col-octonary"
   ];
+  const displayColumns = getDisplayColumns(config, metricKey);
 
   headingIds.forEach((selector, index) => {
     const heading = document.querySelector(selector);
     if (!heading) return;
-    const columnKey = config.columns[index];
+    const columnKey = displayColumns[index];
     if (!columnKey) {
       heading.textContent = "";
       heading.removeAttribute("data-sort-column");
@@ -1009,6 +1021,7 @@ function renderLeaderboard(metricKey = null, viewKey = activeLeaderboardView) {
   document.querySelector("#leaderboard-metric-copy").textContent = metric.copy;
   renderSortOptions(config, metricKey);
   renderTableHeadings(config, metricKey);
+  const displayColumns = getDisplayColumns(config, metricKey);
 
   const rows = [...config.rows].sort((a, b) => {
     const aValue = Number(a[metricKey]);
@@ -1022,7 +1035,7 @@ function renderLeaderboard(metricKey = null, viewKey = activeLeaderboardView) {
   });
 
   if (!rows.length) {
-    tableBody.innerHTML = `<tr><td colspan="${config.columns.length + 2}">No data available.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="${displayColumns.length + 2}">No data available.</td></tr>`;
     return;
   }
 
@@ -1030,7 +1043,7 @@ function renderLeaderboard(metricKey = null, viewKey = activeLeaderboardView) {
     <tr>
       <td class="rank-cell">#${index + 1}</td>
       <td>${row.model}</td>
-      ${config.columns.map((columnKey) => `
+      ${displayColumns.map((columnKey) => `
         <td class="metric-value ${metricKey === columnKey ? "sorted-metric" : ""}">${renderMetricCell(row, columnKey, config.metrics)}</td>
       `).join("")}
     </tr>
@@ -1131,6 +1144,13 @@ function renderRiskOutcomePill(item) {
   `;
 }
 
+function renderRiskMatrixActionTitle(action) {
+  if (Array.isArray(action.displayTitleParts) && action.displayTitleParts.length) {
+    return action.displayTitleParts.map(escapeHtml).join("<br>");
+  }
+  return escapeHtml(action.title);
+}
+
 function renderRiskBehavior() {
   if (!riskBehaviorCards) return;
 
@@ -1142,7 +1162,7 @@ function renderRiskBehavior() {
   const actionHeaders = riskMatrixActions.map((action) => `
     <button class="risk-matrix-box risk-matrix-action" type="button" data-risk-key="${action.modalKey}" aria-haspopup="dialog" aria-controls="risk-case-modal">
       <span>Risky Behavior</span>
-      <strong>${escapeHtml(action.title)}</strong>
+      <strong>${renderRiskMatrixActionTitle(action)}</strong>
     </button>
   `).join("");
 
