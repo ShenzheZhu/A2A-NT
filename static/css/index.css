@@ -1077,6 +1077,14 @@ body.modal-open {
   background: #fbfdfe;
 }
 
+.risk-message.context {
+  justify-self: stretch;
+  width: 100%;
+  border-color: #d5d9db;
+  background: #f1f3f4;
+  box-shadow: none;
+}
+
 .risk-message span {
   display: block;
   margin-bottom: 5px;
@@ -1088,6 +1096,10 @@ body.modal-open {
 
 .risk-message.seller span {
   color: var(--amber);
+}
+
+.risk-message.context span {
+  color: #687174;
 }
 
 .risk-message p {
