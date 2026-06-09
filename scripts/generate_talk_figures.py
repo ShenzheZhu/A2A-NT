@@ -68,21 +68,21 @@ STALL_CMAP = LinearSegmentedColormap.from_list(
 )
 TOP_LABEL_POSITIONS = {
     "GPT-5.5": (20.32, 52.05),
-    "Claude Sonnet 4.6": (16.55, 56.0),
+    "Claude Sonnet 4.6": (16.45, 53.75),
     "Gemini 3.5 Flash": (17.82, 61.0),
     "DeepSeek V4 Pro": (14.72, 59.0),
     "DeepSeek V4 Flash": (14.55, 56.35),
     "Qwen3.7 Max": (17.82, 54.35),
     "Grok 4.20": (20.55, 59.25),
-    "Claude Opus 4.8": (19.98, 56.7),
+    "Claude Opus 4.8": (19.15, 57.35),
     "Qwen2.5-7B": (9.15, 80.25),
 }
 BOTTOM_LABEL_POSITIONS = {
     "GPT-5.5": (70.05, 14.45),
-    "Claude Sonnet 4.6": (66.55, 13.18),
+    "Claude Sonnet 4.6": (67.85, 13.05),
     "Gemini 3.5 Flash": (75.1, 11.25),
     "DeepSeek V4 Pro": (70.2, 11.95),
-    "DeepSeek V4 Flash": (61.0, 13.45),
+    "DeepSeek V4 Flash": (61.65, 13.15),
     "Qwen3.7 Max": (66.2, 14.2),
     "Grok 4.20": (55.0, 12.75),
     "Claude Opus 4.8": (72.55, 13.15),
