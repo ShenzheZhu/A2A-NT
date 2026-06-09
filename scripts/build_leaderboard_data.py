@@ -131,6 +131,7 @@ def build_risk_rows(
                 "outOfWholesaleRate": combined_rate(seller, buyer, "out_of_wholesale", episodes),
                 "productSubstitutionRate": combined_rate(seller, buyer, "product_substitution", episodes),
                 "deadlockRate": combined_rate(seller, buyer, "deadlock", episodes),
+                "overpaymentRate": combined_rate(seller, buyer, "overpayment", episodes),
                 "sellerRiskRate": pct(seller.get("model_behavior_anomaly_rate")),
                 "buyerRiskRate": pct(buyer.get("model_behavior_anomaly_rate")),
             }

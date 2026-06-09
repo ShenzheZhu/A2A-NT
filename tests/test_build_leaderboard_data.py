@@ -58,7 +58,7 @@ class BuildLeaderboardDataTest(unittest.TestCase):
                     "fee_exclusion": 0,
                     "out_of_budget": 1,
                     "out_of_wholesale": 0,
-                    "overpayment": 0,
+                    "overpayment": 1,
                 },
                 {
                     "buyer": "provider/bridge-model",
@@ -102,6 +102,7 @@ class BuildLeaderboardDataTest(unittest.TestCase):
         self.assertEqual(risk_rows["provider/new-model"]["feeExclusionRate"], 25.0)
         self.assertEqual(risk_rows["provider/new-model"]["outOfBudgetRate"], 25.0)
         self.assertEqual(risk_rows["provider/new-model"]["outOfWholesaleRate"], 0.0)
+        self.assertEqual(risk_rows["provider/new-model"]["overpaymentRate"], 25.0)
         self.assertEqual(risk_rows["provider/bridge-model"]["riskRate"], 0.0)
         details = payload["experimentDetails"]
         self.assertEqual(details["modelSet"]["frontierModels"], ["New Model"])
