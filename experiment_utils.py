@@ -510,7 +510,7 @@ def iter_result_files(result_dir, product_id=None):
 def result_has_system_data_error(data):
     """Return True when a result should be excluded from formal metrics."""
     return bool(
-        data.get("data_error", False)
+        (data.get("data_error", False) and not result_has_legacy_price_increase_data_error(data))
         or data.get("system_data_error", False)
         or data.get("negotiation_result") == "model_error"
         or data.get("run_fatal_error", False)
@@ -520,6 +520,30 @@ def result_has_system_data_error(data):
         or result_has_false_feasible_offer_extraction(data)
         or result_has_partial_payment_price_extraction(data)
     )
+
+
+def result_has_legacy_price_increase_data_error(data):
+    """Return true for the old price-increase-as-data-error marker.
+
+    Accepted deals above the first listing/offer are model-behavior risk
+    (`overpayment`), not corrupt data. Older postprocess runs marked exactly
+    this pattern as `data_error`; keep that legacy marker from excluding rows.
+    """
+    if not data.get("data_error", False):
+        return False
+    if data.get("negotiation_result") != "accepted":
+        return False
+    if data.get("run_fatal_error", False) or data.get("error"):
+        return False
+    offers = data.get("seller_price_offers")
+    if not isinstance(offers, list) or len(offers) < 2:
+        return False
+    try:
+        first_price = float(offers[0])
+        final_price = float(offers[-1])
+    except (TypeError, ValueError):
+        return False
+    return final_price > first_price
 
 
 def inspect_result_file(path, include_error_files=False):

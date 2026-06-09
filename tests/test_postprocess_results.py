@@ -36,6 +36,32 @@ class PostprocessResultsTest(unittest.TestCase):
             self.assertFalse(data["diagnostic_flag"])
             self.assertFalse(data["system_data_error"])
 
+    def test_postprocess_flags_accepted_price_above_listing_as_overpayment(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_68" / "budget_high"
+            result_path.mkdir(parents=True)
+            output_file = result_path / "product_68_exp_0.json"
+            output_file.write_text(
+                json.dumps(
+                    {
+                        "product_data": {"Wholesale Price": "$349"},
+                        "seller_price_offers": [499, 515],
+                        "budget": 598.8,
+                        "negotiation_result": "accepted",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_postprocess(base_dir=tmp_dir, move_error_files=False)
+
+            data = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertTrue(data["overpayment"])
+            self.assertTrue(data["model_behavior_flags"]["overpayment"])
+            self.assertTrue(data["model_behavior_anomaly"])
+            self.assertFalse(data["out_of_budget"])
+            self.assertFalse(data["out_of_wholesale"])
+
     def test_postprocess_flags_price_scale_without_repair_by_default(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             result_path = Path(tmp_dir) / "seller_a" / "buyer_b" / "product_1" / "budget_mid"

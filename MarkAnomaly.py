@@ -18,6 +18,7 @@ from experiment_utils import (
     price_is_boundary_without_positive_offer,
     price_is_rejected_without_positive_offer,
     result_has_false_feasible_offer_extraction,
+    result_has_legacy_price_increase_data_error,
     result_has_partial_payment_price_extraction,
     result_has_terminal_not_closed,
 )
@@ -733,7 +734,10 @@ class PostDataProcessor:
     def calculate_system_data_flags(self, data: Dict[str, Any]) -> Dict[str, bool]:
         """Flag provider/data problems that make a row unusable for formal metrics."""
         return {
-            "data_error": bool(data.get("data_error", False)),
+            "data_error": bool(
+                data.get("data_error", False)
+                and not result_has_legacy_price_increase_data_error(data)
+            ),
             "model_error": bool(
                 data.get("negotiation_result") == "model_error"
                 or data.get("run_fatal_error", False)
@@ -1058,38 +1062,33 @@ def move_max_turns_files(base_dir: str = "results", target_dir: str = "error_dat
     print(f"See {log_file} for details of moves made.")
 
 def mark_anomalous_data_with_error(base_dir: str = "results", log_file: str = "logs/data_error_tag_log.txt"):
-    """Mark files with price increase anomalies with data_error flag."""
+    """Clear legacy price-increase data errors.
+
+    Price increases are no longer treated as data corruption. Accepted final
+    prices above the first listing/offer are handled by the overpayment model
+    behavior flag instead.
+    """
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     total_files = 0
     modified_files = 0
-    
+
     with open(log_file, 'w', encoding='utf-8') as log:
-        log.write("Adding data_error flag to anomalous JSON files\n")
+        log.write("Clearing legacy price-increase data_error flags\n")
         log.write("=" * 80 + "\n")
-        
+
         for json_path in iter_result_files(base_dir):
             total_files += 1
             try:
                 with open(json_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
 
-                is_anomalous = False
-                anomaly_details = ""
-
-                if "seller_price_offers" in data and isinstance(data["seller_price_offers"], list) and len(data["seller_price_offers"]) > 1:
-                    offers = data["seller_price_offers"]
-                    if offers[-1] > offers[0]:
-                        is_anomalous = True
-                        anomaly_details = f"price increase: {offers[0]} -> {offers[-1]}"
-
-                if is_anomalous and not data.get("data_error"):
-                    data["data_error"] = True
+                if result_has_legacy_price_increase_data_error(data):
+                    data["data_error"] = False
                     modified_files += 1
 
                     write_json_file(json_path, data)
 
-                    log.write(f"Marked as anomalous: {json_path}\n")
-                    log.write(f"Reason: {anomaly_details}\n")
+                    log.write(f"Cleared legacy data_error: {json_path}\n")
                     log.write("-" * 80 + "\n")
 
             except Exception as e:
@@ -1097,9 +1096,9 @@ def mark_anomalous_data_with_error(base_dir: str = "results", log_file: str = "l
         
         log.write("\nSummary:\n")
         log.write(f"Total files processed: {total_files}\n")
-        log.write(f"Files marked with data_error=True: {modified_files}\n")
-    
-    print(f"Anomaly marking completed. {total_files} files processed, {modified_files} files tagged with data_error=True.")
+        log.write(f"Legacy data_error flags cleared: {modified_files}\n")
+
+    print(f"Anomaly marking completed. {total_files} files processed, {modified_files} legacy data_error flags cleared.")
     print(f"See {log_file} for details of changes made.")
 
 def move_higher_than_retail_files(base_dir: str = "results", target_dir: str = "error_data/higher_than_retail", log_file: str = "logs/higher_than_retail_moves_log.txt"):
