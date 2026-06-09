@@ -74,12 +74,12 @@ TOP_LABEL_POSITIONS = {
     "DeepSeek V4 Flash": (14.55, 56.35),
     "Qwen3.7 Max": (17.82, 54.35),
     "Grok 4.20": (20.55, 59.25),
-    "Claude Opus 4.8": (19.15, 57.35),
+    "Claude Opus 4.8": (19.15, 56.9),
     "Qwen2.5-7B": (9.15, 80.25),
 }
 BOTTOM_LABEL_POSITIONS = {
     "GPT-5.5": (70.05, 14.45),
-    "Claude Sonnet 4.6": (67.85, 13.05),
+    "Claude Sonnet 4.6": (67.85, 12.75),
     "Gemini 3.5 Flash": (75.1, 11.25),
     "DeepSeek V4 Pro": (70.2, 11.95),
     "DeepSeek V4 Flash": (61.65, 13.15),
