@@ -794,6 +794,10 @@ body.modal-open {
   padding: 6px 0;
 }
 
+.risk-matrix-mobile {
+  display: none;
+}
+
 .risk-matrix {
   display: grid;
   grid-template-columns: minmax(128px, 0.72fr) repeat(5, minmax(142px, 1fr));
@@ -1290,6 +1294,50 @@ body.modal-open {
 
   .risk-cards {
     grid-template-columns: 1fr;
+  }
+
+  .risk-matrix-scroll {
+    display: none;
+  }
+
+  .risk-matrix-mobile {
+    display: grid;
+    gap: 12px;
+  }
+
+  .risk-matrix-mobile-actor {
+    display: grid;
+    gap: 8px;
+  }
+
+  .risk-matrix-mobile-actions {
+    display: grid;
+    gap: 8px;
+  }
+
+  .risk-matrix-mobile-action {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .risk-matrix-box {
+    min-height: auto;
+    padding: 10px;
+  }
+
+  .risk-matrix-action,
+  .risk-matrix-actor {
+    gap: 4px;
+  }
+
+  .risk-matrix-box strong {
+    font-size: 13px;
+  }
+
+  .risk-matrix-cell {
+    min-height: 44px;
+    align-items: center;
   }
 
   .risk-case-meta {

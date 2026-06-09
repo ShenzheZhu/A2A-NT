@@ -1201,6 +1201,35 @@ function renderRiskBehavior() {
     `;
   }).join("");
 
+  const mobileRows = riskMatrixActors.map((actor) => {
+    const actionRows = riskMatrixActions.map((action) => {
+      const outcomes = riskMatrixCells[actor.key]?.[action.key] || [];
+      return `
+        <article class="risk-matrix-mobile-action">
+          <button class="risk-matrix-box risk-matrix-action" type="button" data-risk-key="${action.modalKey}" aria-haspopup="dialog" aria-controls="risk-case-modal">
+            <span>Risky Behavior</span>
+            <strong>${renderRiskMatrixActionTitle(action)}</strong>
+          </button>
+          <div class="risk-matrix-box risk-matrix-cell ${outcomes.length ? "" : "empty"}">
+            ${outcomes.map(renderRiskOutcomePill).join("")}
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    return `
+      <section class="risk-matrix-mobile-actor" aria-label="${escapeHtml(actor.title)} risk owner">
+        <button class="risk-matrix-box risk-matrix-actor" type="button" data-risk-key="${actor.modalKey}" aria-haspopup="dialog" aria-controls="risk-case-modal">
+          <span>Risk owner</span>
+          <strong>${escapeHtml(actor.title)}</strong>
+        </button>
+        <div class="risk-matrix-mobile-actions">
+          ${actionRows}
+        </div>
+      </section>
+    `;
+  }).join("");
+
   riskBehaviorCards.innerHTML = `
     <div class="risk-matrix-scroll">
       <div class="risk-matrix" aria-label="Risk behavior matrix">
@@ -1208,6 +1237,9 @@ function renderRiskBehavior() {
         ${actionHeaders}
         ${rows}
       </div>
+    </div>
+    <div class="risk-matrix-mobile" aria-label="Risk behavior matrix mobile view">
+      ${mobileRows}
     </div>
   `;
 }
