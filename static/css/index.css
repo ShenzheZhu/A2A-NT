@@ -830,7 +830,7 @@ body.modal-open {
 .risk-matrix-scroll {
   width: 100%;
   overflow-x: auto;
-  padding-bottom: 6px;
+  padding: 6px 0;
 }
 
 .risk-matrix {
