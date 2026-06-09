@@ -27,6 +27,7 @@ from scripts.summarize_results import final_offer, result_metrics
 BUDGET_ORDER = ["low", "wholesale", "mid", "retail", "high"]
 BUDGET_LABELS = ["Low", "Wholesale", "Mid", "Retail", "High"]
 PRR_BUDGET_LABELS = ["low", "wholesale", "mid", "retail", "high"]
+HEATMAP_FIGSIZE = (9.2, 10.2)
 MODEL_SHORT_LABELS = {
     "openai/gpt-5.5": "GPT-5.5",
     "anthropic/claude-sonnet-4.6": "Claude Sonnet 4.6",
@@ -226,8 +227,7 @@ def budget_matrix(
 
 
 def overpayment_matrix(records: List[Dict[str, Any]], model_ids: List[str]) -> np.ndarray:
-    matrix = budget_matrix(records, model_ids, "buyer", "overpayment")
-    return matrix.T
+    return budget_matrix(records, model_ids, "buyer", "overpayment")
 
 
 def buyer_prr_by_budget(records: List[Dict[str, Any]], model_ids: List[str]) -> Tuple[np.ndarray, np.ndarray]:
@@ -326,10 +326,11 @@ def setup_style() -> None:
     )
 
 
-def save_figure(fig: plt.Figure, output_dir: Path, name: str) -> None:
+def save_figure(fig: plt.Figure, output_dir: Path, name: str, tight: bool = True) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_dir / f"{name}.png", bbox_inches="tight")
-    fig.savefig(output_dir / f"{name}.pdf", bbox_inches="tight")
+    save_kwargs = {"bbox_inches": "tight"} if tight else {}
+    fig.savefig(output_dir / f"{name}.png", **save_kwargs)
+    fig.savefig(output_dir / f"{name}.pdf", **save_kwargs)
     plt.close(fig)
 
 
@@ -366,7 +367,7 @@ def draw_performance_scatter(rows: List[Dict[str, Any]], output_dir: Path) -> No
         size = 70 + 210 * (rel - rel_min) / (rel_max - rel_min or 1)
         axes[1].scatter(row["deal_rate"], row["avg_profit_rate"], s=size, color=colors[row["model"]], alpha=0.85)
         label_x, label_y = BOTTOM_LABEL_POSITIONS.get(row["label"], (row["deal_rate"], row["avg_profit_rate"]))
-        label = f"{row['label']}\n({rel:.1f}x)"
+        label = f"{row['label']}\n({rel:.3f}x)"
         axes[1].annotate(
             label,
             (row["deal_rate"], row["avg_profit_rate"]),
@@ -387,7 +388,7 @@ def draw_performance_scatter(rows: List[Dict[str, Any]], output_dir: Path) -> No
         handles = []
         for rel in [rel_min, (rel_min + rel_max) / 2, rel_max]:
             size = 70 + 210 * (rel - rel_min) / (rel_max - rel_min or 1)
-            handles.append(axes[1].scatter([], [], s=size, color="#6b8fb3", alpha=0.75, label=f"{rel:.1f}x"))
+            handles.append(axes[1].scatter([], [], s=size, color="#6b8fb3", alpha=0.75, label=f"{rel:.3f}x"))
         axes[1].legend(
             handles=handles,
             title="Relative Profit",
@@ -403,7 +404,7 @@ def draw_constraint_heatmaps(records: List[Dict[str, Any]], model_ids: List[str]
     row_labels = [short_label(model) for model in model_ids]
     out_wholesale = budget_matrix(records, model_ids, "seller", "out_of_wholesale")
     out_budget = budget_matrix(records, model_ids, "buyer", "out_of_budget")
-    fig, axes = plt.subplots(2, 1, figsize=(9.2, 10.2))
+    fig, axes = plt.subplots(2, 1, figsize=HEATMAP_FIGSIZE)
     sns.heatmap(
         out_wholesale,
         ax=axes[0],
@@ -438,22 +439,22 @@ def draw_constraint_heatmaps(records: List[Dict[str, Any]], model_ids: List[str]
         axis.tick_params(axis="x", rotation=24)
         axis.tick_params(axis="y", rotation=18)
     fig.tight_layout()
-    save_figure(fig, output_dir, "fig2_constraint_heatmaps")
+    save_figure(fig, output_dir, "fig2_constraint_heatmaps", tight=False)
 
 
 def draw_overpayment_deadlock_heatmaps(records: List[Dict[str, Any]], model_ids: List[str], output_dir: Path) -> None:
     labels = [short_label(model) for model in model_ids]
     overpayment = overpayment_matrix(records, model_ids)
     deadlock = budget_matrix(records, model_ids, "shared", "deadlock")
-    fig, axes = plt.subplots(2, 1, figsize=(10.5, 8.2))
+    fig, axes = plt.subplots(2, 1, figsize=HEATMAP_FIGSIZE)
     sns.heatmap(
         overpayment,
         ax=axes[0],
         cmap=OVERPAYMENT_CMAP,
         annot=True,
         fmt=".1f",
-        xticklabels=labels,
-        yticklabels=BUDGET_LABELS,
+        xticklabels=BUDGET_LABELS,
+        yticklabels=labels,
         cbar_kws={"label": "Overpayment Rate (%)"},
         linewidths=0.2,
         linecolor="#eeeeee",
@@ -476,12 +477,11 @@ def draw_overpayment_deadlock_heatmaps(records: List[Dict[str, Any]], model_ids:
     axes[1].set_title("Deadlock (Max Turn) Rate (%) by Model and Budget")
     axes[1].set_xlabel("")
     axes[1].set_ylabel("")
-    axes[0].tick_params(axis="x", rotation=32)
-    axes[0].tick_params(axis="y", rotation=32)
-    axes[1].tick_params(axis="x", rotation=24)
-    axes[1].tick_params(axis="y", rotation=18)
+    for axis in axes:
+        axis.tick_params(axis="x", rotation=24)
+        axis.tick_params(axis="y", rotation=18)
     fig.tight_layout()
-    save_figure(fig, output_dir, "fig3_overpayment_stall_heatmaps")
+    save_figure(fig, output_dir, "fig3_overpayment_stall_heatmaps", tight=False)
 
 
 def draw_buyer_prr_line(records: List[Dict[str, Any]], model_ids: List[str], output_dir: Path) -> None:
