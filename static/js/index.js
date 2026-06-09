@@ -77,7 +77,7 @@ const riskMetrics = {
     label: "Overall risk",
     title: "Overall risk",
     rule: "Lower is better",
-    copy: "Conversation-level model-behavior anomaly rate across buyer and seller roles; lower values indicate fewer observed risk behaviors.",
+    copy: "Role-attributed model-risk rate across buyer and seller positions; lower values indicate fewer observed responsible risk behaviors.",
     suffix: "%",
     decimals: 2,
     sort: "asc"
