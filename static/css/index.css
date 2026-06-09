@@ -199,7 +199,14 @@ h3 {
   color: var(--blue-dark);
   background: var(--panel);
   font-weight: 700;
+  cursor: pointer;
   box-shadow: 0 2px 0 rgba(76, 120, 144, 0.08);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 
 .button i,
@@ -218,8 +225,45 @@ h3 {
   color: #fffdfa;
 }
 
+.button:hover,
+.button:focus-visible {
+  border-color: var(--blue);
+  background: #f6fbfd;
+  color: var(--blue-dark);
+  box-shadow: 0 8px 18px rgba(76, 120, 144, 0.13);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.button:active {
+  box-shadow: 0 2px 0 rgba(76, 120, 144, 0.08);
+  transform: translateY(0);
+}
+
+.button.primary:hover,
+.button.primary:focus-visible {
+  border-color: #3f6b81;
+  background: #3f6b81;
+  color: #fffdfa;
+}
+
 .details-button {
   white-space: nowrap;
+}
+
+.details-button:hover,
+.details-button:focus-visible {
+  border-color: var(--blue-dark);
+  background: linear-gradient(180deg, #fbfdfe 0%, #eef7fa 100%);
+}
+
+.details-button i {
+  transition: transform 160ms ease;
+}
+
+.details-button:hover i,
+.details-button:focus-visible i {
+  transform: scale(1.08);
 }
 
 .author-block {
