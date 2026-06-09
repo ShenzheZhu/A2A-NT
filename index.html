@@ -104,20 +104,6 @@
         <div class="abstract-copy">
           <p>A2A-NT studies consumer-market deals where both buyers and sellers delegate negotiation to AI agents. We evaluate how different LLM agents perform as deal-makers, and how automation can create imbalanced games, overspending, invalid deals, or stalled negotiations.</p>
         </div>
-        <div class="stat-row" aria-label="Benchmark summary">
-          <div class="stat-item">
-            <strong>Buyer + seller</strong>
-            <span>Two-agent negotiation setting</span>
-          </div>
-          <div class="stat-item">
-            <strong>Consumer products</strong>
-            <span>Retail, wholesale, and budget constraints</span>
-          </div>
-          <div class="stat-item">
-            <strong>Risk labels</strong>
-            <span>Fee handling, refusal, constraint violation, product mismatch, stall</span>
-          </div>
-        </div>
       </section>
 
       <section class="section light" id="framework">
@@ -291,6 +277,16 @@
         <div class="risk-case-summary">
           <span id="risk-case-trigger"></span>
           <p id="risk-case-why"></p>
+        </div>
+        <div class="risk-case-meta" id="risk-case-meta" hidden>
+          <div>
+            <span>Responsible party</span>
+            <strong id="risk-case-responsible"></strong>
+          </div>
+          <div>
+            <span>Risk bearer</span>
+            <strong id="risk-case-bearer"></strong>
+          </div>
         </div>
         <div class="risk-case-variants" id="risk-case-variants" aria-label="Stalled negotiation case types"></div>
         <div class="risk-dialogue-shell" id="risk-dialogue-shell">

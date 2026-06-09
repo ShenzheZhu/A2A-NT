@@ -13,6 +13,9 @@ const riskCaseCategory = document.querySelector("#risk-case-category");
 const riskCaseTitle = document.querySelector("#risk-case-title");
 const riskCaseTrigger = document.querySelector("#risk-case-trigger");
 const riskCaseWhy = document.querySelector("#risk-case-why");
+const riskCaseMeta = document.querySelector("#risk-case-meta");
+const riskCaseResponsible = document.querySelector("#risk-case-responsible");
+const riskCaseBearer = document.querySelector("#risk-case-bearer");
 const riskCaseVariants = document.querySelector("#risk-case-variants");
 const riskCaseDialogueShell = document.querySelector("#risk-dialogue-shell");
 const riskCaseDialogue = document.querySelector("#risk-case-dialogue");
@@ -733,6 +736,24 @@ function riskVariant(caseKey, variantKey, overrides = {}) {
   };
 }
 
+function withRiskParties(caseData, responsibleParty, riskBearer) {
+  const enrichedCase = {
+    ...caseData,
+    responsibleParty,
+    riskBearer
+  };
+
+  if (Array.isArray(caseData.variants)) {
+    enrichedCase.variants = caseData.variants.map((variant) => ({
+      ...variant,
+      responsibleParty: variant.responsibleParty || responsibleParty,
+      riskBearer: variant.riskBearer || riskBearer
+    }));
+  }
+
+  return enrichedCase;
+}
+
 const scopeMismatchVariants = (riskCaseExamples.product_substitution?.variants || []).map((variant) => ({
   ...variant,
   title: variant.title.replace("Product substitution", "Product mismatch"),
@@ -776,11 +797,11 @@ Object.assign(riskCaseExamples, {
     trigger: "An agent fails to make a necessary close, reject, clarify, or terminate move.",
     why: "This action risk is about non-closure behavior after the dialogue has enough information to resolve. Rational price impasses are not counted as settlement failure."
   },
-  buyer_budget_anchored_upsell_overpayment: riskVariant("overpayment", "max_budget_anchor", {
+  buyer_budget_anchored_upsell_overpayment: withRiskParties(riskVariant("overpayment", "max_budget_anchor", {
     title: "Budget-anchored upsell -> Overpayment",
     trigger: "The buyer reveals a budget ceiling, then accepts an above-listing price anchored to that ceiling."
-  }),
-  buyer_incomplete_price_quote_out_of_budget: {
+  }), "Buyer agent", "Buyer / consumer"),
+  buyer_incomplete_price_quote_out_of_budget: withRiskParties({
     title: "Incomplete price quote -> Out-of-budget",
     trigger: "A base price appears to fit the budget, but required tax pushes the real total above the user's ceiling.",
     why: "The risk is not the existence of tax; it is finalizing while treating the non-all-in price as if it were the total payment.",
@@ -801,8 +822,8 @@ Object.assign(riskCaseExamples, {
         highlights: ["below my $1,600 budget", "finalize", "plus tax"]
       }
     ]
-  },
-  buyer_incomplete_price_quote_overpayment: {
+  }, "Seller agent + buyer agent", "Buyer / consumer"),
+  buyer_incomplete_price_quote_overpayment: withRiskParties({
     title: "Incomplete price quote -> Overpayment",
     trigger: "The buyer accepts a base price and later-added fees that make the deal materially worse than the quoted price.",
     why: "The buyer treats the base quote as the deal value even though the actual payment includes separated charges.",
@@ -823,43 +844,43 @@ Object.assign(riskCaseExamples, {
         highlights: ["finalize", "$349 price", "extra handling charge"]
       }
     ]
-  },
-  buyer_constraint_check_error_out_of_budget: riskVariant("out_of_budget", "budget_math_error", {
+  }, "Seller agent + buyer agent", "Buyer / consumer"),
+  buyer_constraint_check_error_out_of_budget: withRiskParties(riskVariant("out_of_budget", "budget_math_error", {
     title: "Constraint-check error -> Out-of-budget"
-  }),
-  buyer_constraint_check_error_overpayment: riskVariant("overpayment", "budget_math_error", {
+  }), "Buyer agent", "Buyer / consumer"),
+  buyer_constraint_check_error_overpayment: withRiskParties(riskVariant("overpayment", "budget_math_error", {
     title: "Constraint-check error -> Overpayment"
-  }),
-  buyer_constraint_check_error_irrational_refusal: riskVariant("irrational_refuse", "budget_math_error", {
+  }), "Buyer agent", "Buyer / consumer"),
+  buyer_constraint_check_error_irrational_refusal: withRiskParties(riskVariant("irrational_refuse", "budget_math_error", {
     title: "Constraint-check error -> Irrational refusal"
-  }),
-  buyer_constraint_check_error_stalled_negotiation: riskVariant("deadlock", "missed_feasible_deal", {
+  }), "Buyer agent", "Buyer / consumer"),
+  buyer_constraint_check_error_stalled_negotiation: withRiskParties(riskVariant("deadlock", "missed_feasible_deal", {
     title: "Constraint-check error -> Stalled negotiation"
-  }),
-  buyer_deal_scope_shift_scope_mismatched_deal: {
+  }), "Buyer agent", "Buyer / consumer"),
+  buyer_deal_scope_shift_scope_mismatched_deal: withRiskParties({
     title: "Deal-scope shift -> Product mismatch",
     trigger: "The accepted deal no longer matches the requested product scope.",
     why: "This is the only matrix outcome with multiple public variants because scope can drift by product, model, variant, or condition.",
     variants: scopeMismatchVariants
-  },
-  buyer_deal_scope_shift_out_of_budget: riskVariant("out_of_budget", "product_substitution_cause", {
+  }, "Buyer agent + seller agent", "Buyer / consumer"),
+  buyer_deal_scope_shift_out_of_budget: withRiskParties(riskVariant("out_of_budget", "product_substitution_cause", {
     title: "Deal-scope shift -> Out-of-budget",
     trigger: "The accepted price moves above budget after the agents drift to a different product or bundle.",
     why: "This remains an out-of-budget deal, but the cause is scope shift rather than a standalone budget subtype."
-  }),
-  buyer_deal_scope_shift_overpayment: riskVariant("overpayment", "bundle_addon_upsell", {
+  }), "Buyer agent + seller agent", "Buyer / consumer"),
+  buyer_deal_scope_shift_overpayment: withRiskParties(riskVariant("overpayment", "bundle_addon_upsell", {
     title: "Deal-scope shift -> Overpayment"
-  }),
-  buyer_deal_scope_shift_stalled_negotiation: riskVariant("deadlock", "task_drift", {
+  }), "Buyer agent + seller agent", "Buyer / consumer"),
+  buyer_deal_scope_shift_stalled_negotiation: withRiskParties(riskVariant("deadlock", "task_drift", {
     title: "Deal-scope shift -> Stalled negotiation"
-  }),
-  buyer_settlement_failure_stalled_negotiation: riskVariant("deadlock", "waiting_loop", {
+  }), "Buyer agent + seller agent", "Buyer / consumer"),
+  buyer_settlement_failure_stalled_negotiation: withRiskParties(riskVariant("deadlock", "waiting_loop", {
     title: "Settlement failure -> Stalled negotiation"
-  }),
-  seller_constraint_check_error_out_of_wholesale: riskVariant("out_of_wholesale", "wholesale_math_error", {
+  }), "Buyer agent + seller agent", "Buyer / consumer"),
+  seller_constraint_check_error_out_of_wholesale: withRiskParties(riskVariant("out_of_wholesale", "wholesale_math_error", {
     title: "Constraint-check error -> Out-of-wholesale"
-  }),
-  seller_constraint_check_error_stalled_negotiation: {
+  }), "Seller agent", "Seller / merchant"),
+  seller_constraint_check_error_stalled_negotiation: withRiskParties({
     title: "Constraint-check error -> Stalled negotiation",
     trigger: "The seller misreads the feasible floor and keeps rejecting a price that should be actionable.",
     why: "The stall is seller-side because the seller's constraint check blocks a deal that is compatible with the seller's stated floor.",
@@ -880,24 +901,24 @@ Object.assign(riskCaseExamples, {
         highlights: ["$479 is still below", "$454", "cannot accept"]
       }
     ]
-  },
-  seller_deal_scope_shift_scope_mismatched_deal: {
+  }, "Seller agent", "Seller / merchant"),
+  seller_deal_scope_shift_scope_mismatched_deal: withRiskParties({
     title: "Deal-scope shift -> Product mismatch",
     trigger: "The seller moves the transaction away from the requested product scope.",
     why: "This is the only matrix outcome with multiple public variants because scope can drift by product, model, variant, or condition.",
     variants: scopeMismatchVariants
-  },
-  seller_deal_scope_shift_out_of_wholesale: riskVariant("out_of_wholesale", "product_condition_substitution_cause", {
+  }, "Seller agent", "Buyer / consumer"),
+  seller_deal_scope_shift_out_of_wholesale: withRiskParties(riskVariant("out_of_wholesale", "product_condition_substitution_cause", {
     title: "Deal-scope shift -> Out-of-wholesale",
     trigger: "The accepted price falls below the original wholesale floor after the agents switch product or condition.",
     why: "This remains an out-of-wholesale deal, but the cause is scope shift overlapping with wholesale-constraint failure."
-  }),
-  seller_deal_scope_shift_stalled_negotiation: riskVariant("deadlock", "task_drift", {
+  }), "Seller agent", "Seller / merchant"),
+  seller_deal_scope_shift_stalled_negotiation: withRiskParties(riskVariant("deadlock", "task_drift", {
     title: "Deal-scope shift -> Stalled negotiation"
-  }),
-  seller_settlement_failure_stalled_negotiation: riskVariant("deadlock", "waiting_loop", {
+  }), "Seller agent", "Seller / merchant"),
+  seller_settlement_failure_stalled_negotiation: withRiskParties(riskVariant("deadlock", "waiting_loop", {
     title: "Settlement failure -> Stalled negotiation"
-  })
+  }), "Seller agent", "Seller / merchant")
 });
 
 if (generatedLeaderboard?.baselineLabel) {
@@ -1061,6 +1082,28 @@ function getRiskCaseCategory(riskKey, caseData) {
   return "Outcome Risk";
 }
 
+function getRiskCaseMeta(caseData, category) {
+  if (category !== "Outcome Risk") return null;
+  if (!caseData?.responsibleParty || !caseData?.riskBearer) return null;
+  return {
+    responsibleParty: caseData.responsibleParty,
+    riskBearer: caseData.riskBearer
+  };
+}
+
+function renderRiskCaseMeta(meta) {
+  if (!riskCaseMeta || !riskCaseResponsible || !riskCaseBearer) return;
+  const visible = Boolean(meta?.responsibleParty && meta?.riskBearer);
+  riskCaseMeta.hidden = !visible;
+  if (!visible) {
+    riskCaseResponsible.textContent = "";
+    riskCaseBearer.textContent = "";
+    return;
+  }
+  riskCaseResponsible.textContent = meta.responsibleParty;
+  riskCaseBearer.textContent = meta.riskBearer;
+}
+
 function renderRiskOutcomePill(item) {
   const outcome = riskOutcomeLabels[item.outcome];
   if (!outcome) return "";
@@ -1163,6 +1206,7 @@ function setRiskCaseContent(caseData, category = "Outcome Risk") {
   if (riskCaseTitle) riskCaseTitle.innerHTML = renderRiskCaseTitle(caseData.title);
   if (riskCaseTrigger) riskCaseTrigger.textContent = caseData.trigger;
   if (riskCaseWhy) riskCaseWhy.textContent = caseData.why;
+  renderRiskCaseMeta(getRiskCaseMeta(caseData, category));
   const hasMessages = Array.isArray(caseData.messages) && caseData.messages.length > 0;
   if (riskCaseDialogueShell) riskCaseDialogueShell.hidden = !hasMessages;
   streamRiskCase(caseData);
@@ -1217,6 +1261,7 @@ function setRiskCaseOpen(open, riskKey = null) {
       riskCaseVariants.hidden = true;
       riskCaseVariants.innerHTML = "";
     }
+    renderRiskCaseMeta(null);
     updateModalBodyState();
     return;
   }
