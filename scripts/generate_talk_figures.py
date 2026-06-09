@@ -26,14 +26,16 @@ from scripts.summarize_results import final_offer, result_metrics
 
 BUDGET_ORDER = ["low", "wholesale", "mid", "retail", "high"]
 BUDGET_LABELS = ["Low", "Wholesale", "Mid", "Retail", "High"]
+PRR_BUDGET_ORDER = ["low", "wholesale", "mid", "retail"]
+PRR_BUDGET_LABELS = ["low", "wholesale", "mid", "retail"]
 MODEL_SHORT_LABELS = {
     "openai/gpt-5.5": "GPT-5.5",
-    "anthropic/claude-sonnet-4.6": "Claude S 4.6",
-    "google/gemini-3.5-flash": "Gemini 3.5",
+    "anthropic/claude-sonnet-4.6": "Claude Sonnet 4.6",
+    "google/gemini-3.5-flash": "Gemini 3.5 Flash",
     "deepseek/deepseek-v4-pro": "DeepSeek V4 Pro",
     "qwen/qwen3.7-max": "Qwen3.7 Max",
     "x-ai/grok-4.20": "Grok 4.20",
-    "anthropic/claude-opus-4.8": "Claude O 4.8",
+    "anthropic/claude-opus-4.8": "Claude Opus 4.8",
     "deepseek/deepseek-v4-flash": "DeepSeek V4 Flash",
     "qwen/qwen-2.5-7b-instruct": "Qwen2.5-7B",
 }
@@ -65,27 +67,27 @@ STALL_CMAP = LinearSegmentedColormap.from_list(
     "paper_stall",
     ["#eee5c8", "#d6b29e", "#bd7596", "#7a2c78", "#211334"],
 )
-TOP_LABEL_OFFSETS = {
-    "GPT-5.5": (6, 4),
-    "Claude S 4.6": (4, -14),
-    "Gemini 3.5": (-58, 8),
-    "DeepSeek V4 Pro": (-58, -16),
-    "DeepSeek V4 Flash": (-68, 8),
-    "Qwen3.7 Max": (6, 6),
-    "Grok 4.20": (7, -10),
-    "Claude O 4.8": (8, 8),
-    "Qwen2.5-7B": (6, -10),
+TOP_LABEL_POSITIONS = {
+    "GPT-5.5": (20.32, 52.05),
+    "Claude Sonnet 4.6": (16.55, 56.0),
+    "Gemini 3.5 Flash": (17.82, 61.0),
+    "DeepSeek V4 Pro": (14.72, 59.0),
+    "DeepSeek V4 Flash": (14.55, 56.35),
+    "Qwen3.7 Max": (17.82, 54.35),
+    "Grok 4.20": (20.55, 59.25),
+    "Claude Opus 4.8": (19.98, 56.7),
+    "Qwen2.5-7B": (9.15, 80.25),
 }
-BOTTOM_LABEL_OFFSETS = {
-    "GPT-5.5": (6, 6),
-    "Claude S 4.6": (-44, -12),
-    "Gemini 3.5": (-56, -12),
-    "DeepSeek V4 Pro": (-52, -16),
-    "DeepSeek V4 Flash": (-74, 10),
-    "Qwen3.7 Max": (-54, 8),
-    "Grok 4.20": (7, 2),
-    "Claude O 4.8": (-56, 10),
-    "Qwen2.5-7B": (-82, 4),
+BOTTOM_LABEL_POSITIONS = {
+    "GPT-5.5": (70.05, 14.45),
+    "Claude Sonnet 4.6": (66.55, 13.18),
+    "Gemini 3.5 Flash": (75.1, 11.25),
+    "DeepSeek V4 Pro": (70.2, 11.95),
+    "DeepSeek V4 Flash": (61.0, 13.45),
+    "Qwen3.7 Max": (66.2, 14.2),
+    "Grok 4.20": (55.0, 12.75),
+    "Claude Opus 4.8": (72.55, 13.15),
+    "Qwen2.5-7B": (74.65, 6.85),
 }
 
 
@@ -230,8 +232,8 @@ def overpayment_matrix(records: List[Dict[str, Any]], model_ids: List[str]) -> n
 
 
 def buyer_prr_by_budget(records: List[Dict[str, Any]], model_ids: List[str]) -> Tuple[np.ndarray, np.ndarray]:
-    model_budget_values = {budget: [] for budget in BUDGET_ORDER}
-    for budget in BUDGET_ORDER:
+    model_budget_values = {budget: [] for budget in PRR_BUDGET_ORDER}
+    for budget in PRR_BUDGET_ORDER:
         for model in model_ids:
             values = []
             for record in records:
@@ -243,9 +245,9 @@ def buyer_prr_by_budget(records: List[Dict[str, Any]], model_ids: List[str]) -> 
                     values.append((retail - final) / retail * 100.0)
             if values:
                 model_budget_values[budget].append(mean(values))
-    means = np.array([mean(model_budget_values[budget]) for budget in BUDGET_ORDER])
+    means = np.array([mean(model_budget_values[budget]) for budget in PRR_BUDGET_ORDER])
     errors = []
-    for budget in BUDGET_ORDER:
+    for budget in PRR_BUDGET_ORDER:
         values = model_budget_values[budget]
         if len(values) <= 1:
             errors.append(0.0)
@@ -333,25 +335,27 @@ def save_figure(fig: plt.Figure, output_dir: Path, name: str) -> None:
 
 
 def draw_performance_scatter(rows: List[Dict[str, Any]], output_dir: Path) -> None:
-    fig, axes = plt.subplots(2, 1, figsize=(8.6, 8.8))
+    fig, axes = plt.subplots(2, 1, figsize=(10.0, 8.9))
     paper_colors = sns.color_palette("viridis", len(rows))
     colors = {row["model"]: paper_colors[index] for index, row in enumerate(rows)}
 
     for row in rows:
         axes[0].scatter(row["buyer_prr"], row["seller_prr"], s=90, color=colors[row["model"]], alpha=0.9)
-        dx, dy = TOP_LABEL_OFFSETS.get(row["label"], (6, 6))
+        label_x, label_y = TOP_LABEL_POSITIONS.get(row["label"], (row["buyer_prr"], row["seller_prr"]))
         axes[0].annotate(
             row["label"],
             (row["buyer_prr"], row["seller_prr"]),
-            xytext=(dx, dy),
-            textcoords="offset points",
-            fontsize=10,
+            xytext=(label_x, label_y),
+            textcoords="data",
+            fontsize=8.5,
+            ha="left",
+            va="center",
         )
     axes[0].set_xlabel("Buyer Price Reduction Rate (%)")
     axes[0].set_ylabel("Seller Price Reduction Rate (%)")
     top_x = [row["buyer_prr"] for row in rows]
     top_y = [row["seller_prr"] for row in rows]
-    axes[0].set_xlim(min(top_x) - 0.6, max(top_x) + 0.7)
+    axes[0].set_xlim(min(top_x) - 0.6, max(top_x) + 2.0)
     axes[0].set_ylim(max(top_y) + 2.2, min(top_y) - 1.4)
     axes[0].grid(True, alpha=0.8)
 
@@ -362,17 +366,22 @@ def draw_performance_scatter(rows: List[Dict[str, Any]], output_dir: Path) -> No
         rel = row["relative_profit"] if row["relative_profit"] and not math.isnan(row["relative_profit"]) else 1.0
         size = 70 + 210 * (rel - rel_min) / (rel_max - rel_min or 1)
         axes[1].scatter(row["deal_rate"], row["avg_profit_rate"], s=size, color=colors[row["model"]], alpha=0.85)
-        dx, dy = BOTTOM_LABEL_OFFSETS.get(row["label"], (6, 6))
+        label_x, label_y = BOTTOM_LABEL_POSITIONS.get(row["label"], (row["deal_rate"], row["avg_profit_rate"]))
         label = f"{row['label']}\n({rel:.1f}x)"
         axes[1].annotate(
             label,
             (row["deal_rate"], row["avg_profit_rate"]),
-            xytext=(dx, dy),
-            textcoords="offset points",
-            fontsize=10,
+            xytext=(label_x, label_y),
+            textcoords="data",
+            fontsize=8.5,
+            linespacing=0.9,
+            ha="left",
+            va="center",
         )
     axes[1].set_xlabel("Deal Rate (%)")
     axes[1].set_ylabel("Average Profit Rate (%)")
+    axes[1].set_xlim(53.8, 78.5)
+    axes[1].set_ylim(5.6, 14.85)
     axes[1].grid(True, alpha=0.8)
 
     if rel_values:
@@ -478,13 +487,13 @@ def draw_overpayment_deadlock_heatmaps(records: List[Dict[str, Any]], model_ids:
 
 def draw_buyer_prr_line(records: List[Dict[str, Any]], model_ids: List[str], output_dir: Path) -> None:
     means, errors = buyer_prr_by_budget(records, model_ids)
-    x = np.arange(len(BUDGET_ORDER))
+    x = np.arange(len(PRR_BUDGET_ORDER))
     fig, axis = plt.subplots(figsize=(9.2, 4.2))
     color = "#5E2A7E"
     axis.plot(x, means, marker="o", color=color, linewidth=2.2, markersize=5)
     axis.fill_between(x, means - errors, means + errors, color=color, alpha=0.18)
     axis.set_xticks(x)
-    axis.set_xticklabels(BUDGET_ORDER)
+    axis.set_xticklabels(PRR_BUDGET_LABELS)
     axis.set_ylabel("Buyer Price Reduction Rate (%)")
     axis.set_title("Average Buyer Price Reduction Rate by Budget Setting")
     axis.grid(True, alpha=0.8)
