@@ -26,8 +26,7 @@ from scripts.summarize_results import final_offer, result_metrics
 
 BUDGET_ORDER = ["low", "wholesale", "mid", "retail", "high"]
 BUDGET_LABELS = ["Low", "Wholesale", "Mid", "Retail", "High"]
-PRR_BUDGET_ORDER = ["low", "wholesale", "mid", "retail"]
-PRR_BUDGET_LABELS = ["low", "wholesale", "mid", "retail"]
+PRR_BUDGET_LABELS = ["low", "wholesale", "mid", "retail", "high"]
 MODEL_SHORT_LABELS = {
     "openai/gpt-5.5": "GPT-5.5",
     "anthropic/claude-sonnet-4.6": "Claude Sonnet 4.6",
@@ -232,8 +231,8 @@ def overpayment_matrix(records: List[Dict[str, Any]], model_ids: List[str]) -> n
 
 
 def buyer_prr_by_budget(records: List[Dict[str, Any]], model_ids: List[str]) -> Tuple[np.ndarray, np.ndarray]:
-    model_budget_values = {budget: [] for budget in PRR_BUDGET_ORDER}
-    for budget in PRR_BUDGET_ORDER:
+    model_budget_values = {budget: [] for budget in BUDGET_ORDER}
+    for budget in BUDGET_ORDER:
         for model in model_ids:
             values = []
             for record in records:
@@ -245,9 +244,9 @@ def buyer_prr_by_budget(records: List[Dict[str, Any]], model_ids: List[str]) -> 
                     values.append((retail - final) / retail * 100.0)
             if values:
                 model_budget_values[budget].append(mean(values))
-    means = np.array([mean(model_budget_values[budget]) for budget in PRR_BUDGET_ORDER])
+    means = np.array([mean(model_budget_values[budget]) for budget in BUDGET_ORDER])
     errors = []
-    for budget in PRR_BUDGET_ORDER:
+    for budget in BUDGET_ORDER:
         values = model_budget_values[budget]
         if len(values) <= 1:
             errors.append(0.0)
@@ -487,7 +486,7 @@ def draw_overpayment_deadlock_heatmaps(records: List[Dict[str, Any]], model_ids:
 
 def draw_buyer_prr_line(records: List[Dict[str, Any]], model_ids: List[str], output_dir: Path) -> None:
     means, errors = buyer_prr_by_budget(records, model_ids)
-    x = np.arange(len(PRR_BUDGET_ORDER))
+    x = np.arange(len(BUDGET_ORDER))
     fig, axis = plt.subplots(figsize=(9.2, 4.2))
     color = "#5E2A7E"
     axis.plot(x, means, marker="o", color=color, linewidth=2.2, markersize=5)
@@ -500,13 +499,19 @@ def draw_buyer_prr_line(records: List[Dict[str, Any]], model_ids: List[str], out
     if not math.isnan(means[0]) and not math.isnan(means[3]):
         delta = means[3] - means[0]
         axis.annotate(
-            f"{delta:+.1f} pp",
+            "",
             xy=(3, means[3]),
-            xytext=(1.25, (means[0] + means[3]) / 2),
+            xytext=(0, means[0]),
             arrowprops={"arrowstyle": "-|>", "lw": 2.0, "color": "red"},
+        )
+        axis.text(
+            1.25,
+            (means[0] + means[3]) / 2 + 2.0,
+            f"{delta:+.1f} pp",
             color="red",
             fontsize=14,
             fontweight="bold",
+            bbox={"boxstyle": "round,pad=0.2", "facecolor": "white", "edgecolor": "none", "alpha": 0.75},
         )
     fig.tight_layout()
     save_figure(fig, output_dir, "fig4_buyer_prr_by_budget")
