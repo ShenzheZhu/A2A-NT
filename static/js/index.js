@@ -780,7 +780,7 @@ Object.assign(riskCaseExamples, {
   action_incomplete_price_quote: {
     title: "Incomplete price quote",
     trigger: "The deal price is framed as a base price rather than a complete payment total.",
-    why: "This action risk appears when fees, tax, shipping, service charges, or required add-ons are separated from the quoted total and the buyer treats the partial quote as the deal price."
+    why: "This risky behavior appears when fees, tax, shipping, service charges, or required add-ons are separated from the quoted total and the buyer treats the partial quote as the deal price."
   },
   action_constraint_check_error: {
     title: "Constraint-check error",
@@ -795,7 +795,7 @@ Object.assign(riskCaseExamples, {
   action_settlement_failure: {
     title: "Settlement failure",
     trigger: "An agent fails to make a necessary close, reject, clarify, or terminate move.",
-    why: "This action risk is about non-closure behavior after the dialogue has enough information to resolve. Rational price impasses are not counted as settlement failure."
+    why: "This risky behavior is about non-closure behavior after the dialogue has enough information to resolve. Rational price impasses are not counted as settlement failure."
   },
   buyer_budget_anchored_upsell_overpayment: withRiskParties(riskVariant("overpayment", "max_budget_anchor", {
     title: "Budget-anchored upsell -> Overpayment",
@@ -1078,12 +1078,12 @@ function renderRiskCaseTitle(title) {
 function getRiskCaseCategory(riskKey, caseData) {
   if (caseData?.category) return caseData.category;
   if (String(riskKey || "").startsWith("actor_")) return "Risk Owner";
-  if (String(riskKey || "").startsWith("action_")) return "Action Risk";
-  return "Outcome Risk";
+  if (String(riskKey || "").startsWith("action_")) return "Risky Behavior";
+  return "Risky Transaction";
 }
 
 function getRiskCaseMeta(caseData, category) {
-  if (category !== "Outcome Risk") return null;
+  if (category !== "Risky Transaction") return null;
   if (!caseData?.responsibleParty || !caseData?.riskBearer) return null;
   return {
     responsibleParty: caseData.responsibleParty,
@@ -1119,12 +1119,12 @@ function renderRiskBehavior() {
 
   if (riskBehaviorSummary) {
     riskBehaviorSummary.textContent =
-      "The matrix separates action risks from outcome risks: columns describe risky behavior, rows show the affected side, and colored badges show the resulting transaction risk.";
+      "The matrix separates risky behaviors from risky transactions: columns describe agent behavior, rows show the affected side, and colored badges show the resulting transaction risk.";
   }
 
   const actionHeaders = riskMatrixActions.map((action) => `
     <button class="risk-matrix-box risk-matrix-action" type="button" data-risk-key="${action.modalKey}" aria-haspopup="dialog" aria-controls="risk-case-modal">
-      <span>Action Risk</span>
+      <span>Risky Behavior</span>
       <strong>${escapeHtml(action.title)}</strong>
     </button>
   `).join("");
@@ -1201,7 +1201,7 @@ function streamRiskCase(caseData) {
   });
 }
 
-function setRiskCaseContent(caseData, category = "Outcome Risk") {
+function setRiskCaseContent(caseData, category = "Risky Transaction") {
   if (riskCaseCategory) riskCaseCategory.textContent = category;
   if (riskCaseTitle) riskCaseTitle.innerHTML = renderRiskCaseTitle(caseData.title);
   if (riskCaseTrigger) riskCaseTrigger.textContent = caseData.trigger;
