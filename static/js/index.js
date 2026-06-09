@@ -2,6 +2,7 @@ const navToggle = document.querySelector(".nav-toggle");
 const navLinks = document.querySelector(".nav-links");
 const leaderboardSortSelect = document.querySelector("#leaderboard-sort-select");
 const leaderboardTabs = document.querySelectorAll("[data-leaderboard-view]");
+const leaderboardTableShell = document.querySelector(".table-shell");
 const experimentDetailsButton = document.querySelector("#experiment-details-button");
 const experimentDetailsModal = document.querySelector("#experiment-details-modal");
 const experimentDetailsGrid = document.querySelector("#experiment-details-grid");
@@ -55,7 +56,7 @@ const performanceMetrics = {
     label: "Seller PRR",
     title: "Seller PRR",
     rule: "Lower is better",
-    copy: "Seller price reduction rate is computed from clean deals; lower values indicate stronger seller-side outcomes.",
+    copy: "<strong>Seller price reduction rate</strong> measures how much the final accepted price falls below the listed retail price when the model plays the seller. Lower values mean the seller agent preserves more price.",
     suffix: "%",
     decimals: 2,
     sort: "asc"
@@ -64,7 +65,7 @@ const performanceMetrics = {
     label: "Buyer PRR",
     title: "Buyer PRR",
     rule: "Higher is better",
-    copy: "Buyer price reduction rate is computed from clean deals; higher values indicate stronger buyer-side outcomes.",
+    copy: "<strong>Buyer price reduction rate</strong> measures how much the final accepted price falls below the listed retail price when the model plays the buyer. Higher values mean the buyer agent negotiates a larger discount.",
     suffix: "%",
     decimals: 2,
     sort: "desc"
@@ -941,7 +942,7 @@ Object.assign(riskCaseExamples, {
 
 if (generatedLeaderboard?.baselineLabel) {
   performanceMetrics.relativeProfit.copy =
-    `Seller-side average profit from clean deals, normalized against ${generatedLeaderboard.baselineLabel} as the 1.0x baseline.`;
+    `Seller-side average profit from clean deals, normalized against ${escapeHtml(generatedLeaderboard.baselineLabel)} as the 1.0x baseline.`;
 }
 
 function formatMetric(value, metricKey, metrics) {
@@ -1018,7 +1019,7 @@ function renderLeaderboard(metricKey = null, viewKey = activeLeaderboardView) {
 
   document.querySelector("#leaderboard-metric-title").textContent = metric.title;
   document.querySelector("#leaderboard-metric-rule").textContent = metric.rule;
-  document.querySelector("#leaderboard-metric-copy").textContent = metric.copy;
+  document.querySelector("#leaderboard-metric-copy").innerHTML = metric.copy;
   renderSortOptions(config, metricKey);
   renderTableHeadings(config, metricKey);
   const displayColumns = getDisplayColumns(config, metricKey);
@@ -1048,6 +1049,9 @@ function renderLeaderboard(metricKey = null, viewKey = activeLeaderboardView) {
       `).join("")}
     </tr>
   `).join("");
+  if (leaderboardTableShell) {
+    leaderboardTableShell.scrollLeft = 0;
+  }
 }
 
 function escapeHtml(value) {
